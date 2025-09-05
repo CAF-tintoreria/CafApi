@@ -11,22 +11,22 @@ namespace CafApi.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class ClientesController : ControllerBase
+public class ClientsController : ControllerBase
 {
-    private readonly ClienteRepository _repo;
+    private readonly ClientsRepository _repo;
     private readonly JwtTokenService _tokenSvc;
-    public ClientesController(ClienteRepository repo, JwtTokenService tokenSvc)
+    public ClientsController(ClientsRepository repo, JwtTokenService tokenSvc)
     {
         _repo = repo;
         _tokenSvc = tokenSvc;
     }
 
     [HttpGet]
-    public async Task<ActionResult> Get([FromQuery] string? nombre)
+    public async Task<ActionResult> Get([FromQuery] string? username)
     {
         try
         {
-            var data = await _repo.GetAllAsync(nombre);
+            var data = await _repo.GetAllAsync(username);
             return Ok(new { ok = true, data });
         }
         catch (Exception )
@@ -52,16 +52,16 @@ public class ClientesController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult> Create([FromBody] ClienteCreateDto dto)
+    public async Task<ActionResult> Create([FromBody] ClientCreateDto dto)
     {
-        if (string.IsNullOrWhiteSpace(dto.Nombre))
+        if (string.IsNullOrWhiteSpace(dto.Username))
             return BadRequest(new { ok = false, message = "Nombre es requerido." });
-        if (dto.Nombre.Length > 24)
+        if (dto.Username.Length > 24)
             return BadRequest(new { ok = false, message = "El nombre no puede superar los 24 caracteres." });
 
         try
         {
-            if (await _repo.ExistsByNombreAsync(dto.Nombre))
+            if (await _repo.ExistsByNombreAsync(dto.Username))
                 return Conflict(new { ok = false, message = "Ya existe un cliente con ese Nombre." });
 
             var newId = await _repo.CreateAsync(dto);
@@ -77,7 +77,7 @@ public class ClientesController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<ActionResult> Update(int id, [FromBody] ClienteUpdateDto dto)
     {
-        if (dto.Nombre.Length > 24)
+        if (dto.Username.Length > 24)
             return BadRequest(new { ok = false, message = "El nombre no puede superar los 24 caracteres." });
 
         try
@@ -86,15 +86,15 @@ public class ClientesController : ControllerBase
             if (existing is null)
                 return NotFound(new { ok = false, message = "Cliente no encontrado." });
 
-            if (await _repo.ExistsByNombreAsync(dto.Nombre, id))
+            if (await _repo.ExistsByNombreAsync(dto.Username, id))
                 return Conflict(new { ok = false, message = "Ya existe otro cliente con ese Nombre." });
 
-            var entity = new Cliente
+            var entity = new Client
             {
-                ClienteID = id,
-                Nombre = dto.Nombre,
-                Contacto = dto.Contacto,
-                Estado = dto.Estado
+                ClientID = id,
+                Username = dto.Username,
+                Contact = dto.Contact,
+                State = dto.State
             };
 
             var ok = await _repo.UpdateAsync(entity);

@@ -1,5 +1,4 @@
-﻿// Controllers/UsuariosController.cs
-using CafApi.Data;
+﻿using CafApi.Data;
 using CafApi.Models;
 using CafApi.Utils;
 using Microsoft.AspNetCore.Authorization;
@@ -12,12 +11,12 @@ namespace CafApi.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class UsuariosController : ControllerBase
+public class UsersController : ControllerBase
 {
-    private readonly UsuarioRepository _repo;
+    private readonly UsersRepository _repo;
     private readonly JwtTokenService _tokenSvc;
 
-    public UsuariosController(UsuarioRepository repo, JwtTokenService tokenSvc)
+    public UsersController(UsersRepository repo, JwtTokenService tokenSvc)
     {
         _repo = repo;
         _tokenSvc = tokenSvc;
@@ -26,22 +25,22 @@ public class UsuariosController : ControllerBase
     static readonly HashSet<string> RolesValidos = new(StringComparer.OrdinalIgnoreCase)
         { "Administrador", "Ingreso" };
 
-    private (bool ok, string? error) ValidarNuevo(Usuario u)
+    private (bool ok, string? error) ValidarNuevo(UserModel u)
     {
         // nombre: >3 y <24
-        if (string.IsNullOrWhiteSpace(u.Nombre) || u.Nombre.Length <= 3 || u.Nombre.Length >= 24)
+        if (string.IsNullOrWhiteSpace(u.Username) || u.Username.Length <= 3 || u.Username.Length >= 24)
             return (false, "El nombre debe tener más de 3 y menos de 24 caracteres.");
         // rol
-        if (string.IsNullOrWhiteSpace(u.Rol) || !RolesValidos.Contains(u.Rol))
+        if (string.IsNullOrWhiteSpace(u.Role) || !RolesValidos.Contains(u.Role))
             return (false, "El rol debe ser 'Administrador' o 'Ingreso'.");
         // contraseña: 6–16
-        if (string.IsNullOrEmpty(u.Contrasena) || u.Contrasena.Length < 6 || u.Contrasena.Length > 16)
+        if (string.IsNullOrEmpty(u.Password) || u.Password.Length < 6 || u.Password.Length > 16)
             return (false, "La contraseña debe tener entre 6 y 16 caracteres.");
         return (true, null);
     }
 
     [HttpPost]
-    public async Task<ActionResult> Create([FromBody] Usuario u)
+    public async Task<ActionResult> Create([FromBody] UserModel u)
     {
         try
         {
@@ -50,7 +49,7 @@ public class UsuariosController : ControllerBase
             if (!v.ok) return BadRequest(new { ok = false, message = v.error });
 
             // Unicidad de nombre
-            if (await _repo.ExistsNombreAsync(u.Nombre))
+            if (await _repo.ExistsNombreAsync(u.Username))
                 return Conflict(new { ok = false, message = "El nombre ya existe." });
 
             await _repo.CreateAsync(u);
@@ -65,11 +64,11 @@ public class UsuariosController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult> Get([FromQuery] string? nombre)
+    public async Task<ActionResult> Get([FromQuery] string? username)
     {
         try
         {
-            var data = await _repo.GetAllAsync(nombre);
+            var data = await _repo.GetAllAsync(username);
             return Ok(new { ok = true, message = "Listado obtenido.", data });
         }
         catch (Exception ex)
@@ -94,18 +93,18 @@ public class UsuariosController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    public async Task<ActionResult> Update(int id, [FromBody] Usuario u)
+    public async Task<ActionResult> Update(int id, [FromBody] UserModel u)
     {
         try
         {
             // Validaciones mínimas para update (nombre y rol)
-            if (string.IsNullOrWhiteSpace(u.Nombre) || u.Nombre.Length <= 3 || u.Nombre.Length >= 24)
+            if (string.IsNullOrWhiteSpace(u.Username) || u.Username.Length <= 3 || u.Username.Length >= 24)
                 return BadRequest(new { ok = false, message = "El nombre debe tener más de 3 y menos de 24 caracteres." });
-            if (!RolesValidos.Contains(u.Rol ?? ""))
+            if (!RolesValidos.Contains(u.Role ?? ""))
                 return BadRequest(new { ok = false, message = "El rol debe ser 'Administrador' o 'Ingreso'." });
 
             // Si viene contraseña, validar longitud
-            if (!string.IsNullOrEmpty(u.Contrasena) && (u.Contrasena.Length < 6 || u.Contrasena.Length > 16))
+            if (!string.IsNullOrEmpty(u.Password) && (u.Password.Length < 6 || u.Password.Length > 16))
                 return BadRequest(new { ok = false, message = "La contraseña debe tener entre 6 y 16 caracteres." });
 
             var ok = await _repo.UpdateAsync(id, u);

@@ -11,10 +11,10 @@ namespace CafApi.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private readonly UsuarioRepository _repo;
+    private readonly UsersRepository _repo;
     private readonly JwtTokenService _jwt;
 
-    public AuthController(UsuarioRepository repo, JwtTokenService jwt)
+    public AuthController(UsersRepository repo, JwtTokenService jwt)
     {
         _repo = repo;
         _jwt = jwt;
@@ -24,16 +24,16 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest dto)
     {
-        // dto.Nombre y dto.Contrasena (no "Password")
-        var user = await _repo.GetByNombreAsync(dto.Nombre);
+        // dto.Nombre y dto.Password
+        var user = await _repo.GetByNombreAsync(dto.Username);
         if (user is null) return Unauthorized(new { ok = false, message = "Credenciales inválidas" });
 
         // Verificación: (password plano, hash almacenado)
-        var okPwd = PasswordHasher.Verify(dto.Contrasena, user.Contrasena);
+        var okPwd = PasswordHasher.Verify(dto.Password, user.Password);
         if (!okPwd) return Unauthorized(new { ok = false, message = "Credenciales inválidas" });
 
         // Crear token con (id, nombre, rol)
-        var token = _jwt.CreateToken(user.UsuarioID, user.Nombre, user.Rol);
+        var token = _jwt.CreateToken(user.UserId, user.Username, user.Role);
         return Ok(new { ok = true, token });
     }
 
@@ -52,7 +52,7 @@ public class AuthController : ControllerBase
         var user = await _repo.GetByIdAsync(id);
         if (user is null) return Unauthorized(new { ok = false, message = "No tenés permiso.." });
 
-        var token = _jwt.CreateToken(user.UsuarioID, user.Nombre, user.Rol);
+        var token = _jwt.CreateToken(user.UserId, user.Username, user.Role);
         return Ok(new { ok = true, token });
     }
 }

@@ -43,8 +43,8 @@ builder.Services.AddSwaggerGen(options =>
 
 // Db y repos
 builder.Services.AddSingleton<Db>();
-builder.Services.AddScoped<UsuarioRepository>();
-builder.Services.AddScoped<ClienteRepository>();
+builder.Services.AddScoped<UsersRepository>();
+builder.Services.AddScoped<ClientsRepository>();
 builder.Services.AddSingleton<PasswordHasher>();
 builder.Services.AddSingleton<JwtTokenService>();
 
