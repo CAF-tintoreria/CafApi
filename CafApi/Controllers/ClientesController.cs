@@ -1,17 +1,25 @@
 // Controllers/ClientesController.cs
 using CafApi.Data;
 using CafApi.Models;
+using CafApi.Utils;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 
 namespace CafApi.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class ClientesController : ControllerBase
 {
     private readonly ClienteRepository _repo;
-    public ClientesController(ClienteRepository repo) => _repo = repo;
+    private readonly JwtTokenService _tokenSvc;
+    public ClientesController(ClienteRepository repo, JwtTokenService tokenSvc)
+    {
+        _repo = repo;
+        _tokenSvc = tokenSvc;
+    }
 
     [HttpGet]
     public async Task<ActionResult> Get([FromQuery] string? nombre)
