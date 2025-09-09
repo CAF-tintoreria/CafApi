@@ -1,13 +1,16 @@
-﻿using Microsoft.Data.SqlClient;     // <— cambia este using
-using Microsoft.Extensions.Configuration;
-
-namespace CafApi.Data;
+﻿using Microsoft.Data.SqlClient;
 
 public class Db
 {
-    private readonly IConfiguration _config;
-    public Db(IConfiguration config) => _config = config;
+    private readonly string _connString;
 
-    public SqlConnection GetConnection()
-        => new SqlConnection(_config.GetConnectionString("CafDb"));
+    public Db(IConfiguration config)
+    {
+        
+        _connString = config.GetConnectionString("CafDb")
+                      ?? config["CafDb"]
+                      ?? throw new InvalidOperationException("Falta ConnectionStrings:CafDb");
+    }
+
+    public SqlConnection GetConnection() => new SqlConnection(_connString);
 }
