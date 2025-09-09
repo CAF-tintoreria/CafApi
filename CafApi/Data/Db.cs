@@ -4,11 +4,11 @@ public class Db
 {
     private readonly string _connString;
 
-    public Db(IConfiguration cfg)
+    public Db(IConfiguration config)
     {
-        // Preferí ConnectionStrings:CafDb; cae a "CafDb" plano si querés
-        _connString = cfg.GetConnectionString("CafDb")
-                      ?? cfg["CafDb"]
+        
+        _connString = config.GetConnectionString("CafDb")
+                      ?? config["CafDb"]
                       ?? throw new InvalidOperationException("Falta ConnectionStrings:CafDb");
     }
 
