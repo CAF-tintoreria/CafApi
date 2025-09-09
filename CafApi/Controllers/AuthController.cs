@@ -24,7 +24,6 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest dto)
     {
-        // dto.Nombre y dto.Password
         var user = await _repo.GetByNombreAsync(dto.Username);
         if (user is null) return Unauthorized(new { ok = false, message = "Credenciales inválidas" });
 
@@ -42,7 +41,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> RefreshToken()
     {
         var idStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
-                   ?? User.FindFirstValue(ClaimTypes.Name); // por si configuraste así los claims
+                   ?? User.FindFirstValue(ClaimTypes.Name);
         if (string.IsNullOrWhiteSpace(idStr))
             return Unauthorized(new { ok = false, message = "Agregar token de acceso" });
 
