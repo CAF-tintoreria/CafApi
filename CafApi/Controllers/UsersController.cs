@@ -44,17 +44,13 @@ public class UsersController : ControllerBase
     {
         try
         {
-            // Validaciones de negocio
             var v = ValidarNuevo(u);
             if (!v.ok) return BadRequest(new { ok = false, message = v.error });
 
-            // Unicidad de nombre
             if (await _repo.ExistsNombreAsync(u.Username))
                 return Conflict(new { ok = false, message = "El nombre ya existe." });
 
             await _repo.CreateAsync(u);
-
-            // Respuesta EXACTA solicitada
             return Ok(new { ok = true, message = "Usuario creado." });
         }
         catch (Exception ex)
@@ -97,13 +93,11 @@ public class UsersController : ControllerBase
     {
         try
         {
-            // Validaciones mínimas para update (nombre y rol)
             if (string.IsNullOrWhiteSpace(u.Username) || u.Username.Length <= 3 || u.Username.Length >= 24)
                 return BadRequest(new { ok = false, message = "El nombre debe tener más de 3 y menos de 24 caracteres." });
             if (!RolesValidos.Contains(u.Role ?? ""))
                 return BadRequest(new { ok = false, message = "El rol debe ser 'Administrador' o 'Ingreso'." });
 
-            // Si viene contraseña, validar longitud
             if (!string.IsNullOrEmpty(u.Password) && (u.Password.Length < 6 || u.Password.Length > 16))
                 return BadRequest(new { ok = false, message = "La contraseña debe tener entre 6 y 16 caracteres." });
 
@@ -130,6 +124,53 @@ public class UsersController : ControllerBase
         catch (Exception ex)
         {
             return Problem(title: "No se pudo eliminar el usuario.", detail: ex.Message, statusCode: 500);
+        }
+    }
+
+
+    [HttpPost("change-password")]
+    [AllowAnonymous] // Ruta sin auth
+    public async Task<ActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
+    {
+        try
+        {
+            if (req is null)
+                return BadRequest(new { ok = false, message = "Datos inválidos." });
+
+            // Validación básica de entrada
+            if (string.IsNullOrWhiteSpace(req.Username))
+                return BadRequest(new { ok = false, message = "El nombre es requerido." });
+            if (string.IsNullOrWhiteSpace(req.Role))
+                return BadRequest(new { ok = false, message = "El rol es requerido." });
+
+            if (string.IsNullOrEmpty(req.NewPassword) || req.NewPassword.Length < 6 || req.NewPassword.Length > 16)
+                return BadRequest(new { ok = false, message = "La contraseña debe tener entre 6 y 16 caracteres." });
+
+            // 1) Validar username
+            var user = await _repo.GetByNombreAsync(req.Username);
+            if (user is null)
+                return Unauthorized(new { ok = false, message = "El campo 'username' es incorrecto.", field = "username" });
+
+            // 2) Validar rol (case-insensitive)
+            if (!string.Equals(user.Role, req.Role, StringComparison.OrdinalIgnoreCase))
+                return Unauthorized(new { ok = false, message = "El campo 'role' es incorrecto.", field = "role" });
+
+            // 3) Impedir que la nueva contraseña sea la actual
+            var sameAsCurrent = PasswordHasher.Verify(req.NewPassword, user.Password);
+            if (sameAsCurrent)
+                return BadRequest(new { ok = false, message = "La nueva contraseña no puede ser igual a la actual." });
+
+            // 4) Hashear y actualizar
+            var newHash = PasswordHasher.Hash(req.NewPassword);
+            var updated = await _repo.UpdatePasswordAsync(user.UserId, newHash);
+            if (!updated)
+                return StatusCode(500, new { ok = false, message = "No se pudo actualizar la contraseña." });
+
+            return Ok(new { ok = true, message = "Contraseña actualizada correctamente." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { ok = false, message = "Error interno al cambiar la contraseña.", detail = ex.Message });
         }
     }
 }

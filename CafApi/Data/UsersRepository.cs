@@ -10,8 +10,6 @@ namespace CafApi.Data
         private readonly Db _db;
         public UsersRepository(Db db) => _db = db;
 
-
-
         public async Task<bool> ExistsNombreAsync(string username)
         {
             using var cn = _db.GetConnection();
@@ -63,7 +61,7 @@ ORDER BY UsuarioID DESC;";
                     UserId = rd.GetInt32(0),
                     Username = rd.GetString(1),
                     Role = rd.GetString(2),
-                    Password= rd.GetString(3) // valor hasheado
+                    Password = rd.GetString(3)
                 });
             }
             return list;
@@ -98,7 +96,7 @@ WHERE UsuarioID = @id;";
             using var cn = _db.GetConnection();
             using var cmd = cn.CreateCommand();
 
-            var setPwd = u.Password is not null && u.Password!= "";
+            var setPwd = u.Password is not null && u.Password != "";
             var pwdClause = setPwd ? ", [Contraseña] = @pwd" : "";
 
             cmd.CommandText = $@"
@@ -138,7 +136,7 @@ WHERE UsuarioID = @id;";
 SELECT UsuarioID, Nombre, Rol, [Contraseña]
 FROM dbo.Usuario
 WHERE Nombre = @nombre;";
-            cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@nombre", username));
+            cmd.Parameters.Add(new SqlParameter("@nombre", username));
             await cn.OpenAsync();
             using var rd = await cmd.ExecuteReaderAsync(CommandBehavior.CloseConnection);
             if (await rd.ReadAsync())
@@ -152,6 +150,21 @@ WHERE Nombre = @nombre;";
                 };
             }
             return null;
+        }
+
+        public async Task<bool> UpdatePasswordAsync(int userId, string newPasswordHash)
+        {
+            using var cn = _db.GetConnection();
+            using var cmd = cn.CreateCommand();
+            cmd.CommandText = @"
+UPDATE dbo.Usuario
+SET [Contraseña] = @pwd
+WHERE UsuarioID = @id;";
+            cmd.Parameters.Add(new SqlParameter("@pwd", newPasswordHash));
+            cmd.Parameters.Add(new SqlParameter("@id", userId));
+            await cn.OpenAsync();
+            var rows = await cmd.ExecuteNonQueryAsync();
+            return rows > 0;
         }
     }
 }
