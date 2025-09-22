@@ -5,43 +5,43 @@ using CafApi.Models;
 
 namespace CafApi.Data;
 
-public class ClienteRepository
+public class ClientsRepository
 {
     private readonly Db _db;
-    public ClienteRepository(Db db) => _db = db;
+    public ClientsRepository(Db db) => _db = db;
 
-    public async Task<IEnumerable<Cliente>> GetAllAsync(string? nombre = null)
+    public async Task<IEnumerable<Client>> GetAllAsync(string? username = null)
     {
-        var list = new List<Cliente>();
+        var list = new List<Client>();
         var sql = @"SELECT ClienteID, Nombre, Contacto, Estado
                     FROM dbo.Cliente";
-        if (!string.IsNullOrWhiteSpace(nombre))
+        if (!string.IsNullOrWhiteSpace(username))
             sql += " WHERE Nombre LIKE @n";
 
         using var con = _db.GetConnection();
         using var cmd = new SqlCommand(sql, con);
 
-        if (!string.IsNullOrWhiteSpace(nombre))
-            cmd.Parameters.Add(new SqlParameter("@n", SqlDbType.NVarChar, 24) { Value = $"%{nombre}%" });
+        if (!string.IsNullOrWhiteSpace(username))
+            cmd.Parameters.Add(new SqlParameter("@n", SqlDbType.NVarChar, 24) { Value = $"%{username}%" });
 
         await con.OpenAsync();
         using var rd = await cmd.ExecuteReaderAsync();
         while (await rd.ReadAsync())
         {
-            list.Add(new Cliente
+            list.Add(new Client
             {
-                ClienteID = rd.GetInt32(rd.GetOrdinal("ClienteID")),
-                Nombre = rd.GetString(rd.GetOrdinal("Nombre")),
-                Contacto = rd.IsDBNull(rd.GetOrdinal("Contacto"))
+                ClientID = rd.GetInt32(rd.GetOrdinal("ClienteID")),
+                Username = rd.GetString(rd.GetOrdinal("Nombre")),
+                Contact = rd.IsDBNull(rd.GetOrdinal("Contacto"))
                                 ? null
                                 : rd.GetString(rd.GetOrdinal("Contacto")),
-                Estado = rd.GetBoolean(rd.GetOrdinal("Estado"))
+                State = rd.GetBoolean(rd.GetOrdinal("Estado"))
             });
         }
         return list;
     }
 
-    public async Task<Cliente?> GetByIdAsync(int id)
+    public async Task<Client?> GetByIdAsync(int id)
     {
         const string sql = @"SELECT ClienteID, Nombre, Contacto, Estado
                              FROM dbo.Cliente WHERE ClienteID=@id";
@@ -52,18 +52,18 @@ public class ClienteRepository
         using var rd = await cmd.ExecuteReaderAsync();
         if (!await rd.ReadAsync()) return null;
 
-        return new Cliente
+        return new Client
         {
-            ClienteID = rd.GetInt32(rd.GetOrdinal("ClienteID")),
-            Nombre = rd.GetString(rd.GetOrdinal("Nombre")),
-            Contacto = rd.IsDBNull(rd.GetOrdinal("Contacto"))
+            ClientID = rd.GetInt32(rd.GetOrdinal("ClienteID")),
+            Username = rd.GetString(rd.GetOrdinal("Nombre")),
+            Contact = rd.IsDBNull(rd.GetOrdinal("Contacto"))
                             ? null
                             : rd.GetString(rd.GetOrdinal("Contacto")),
-            Estado = rd.GetBoolean(rd.GetOrdinal("Estado"))
+            State = rd.GetBoolean(rd.GetOrdinal("Estado"))
         };
     }
 
-    public async Task<int> CreateAsync(ClienteCreateDto c)
+    public async Task<int> CreateAsync(ClientCreateDto c)
     {
         const string sql = @"
 INSERT INTO dbo.Cliente (Nombre, Contacto, Estado)
@@ -72,9 +72,9 @@ VALUES (@Nombre, @Contacto, @Estado);";
 
         using var con = _db.GetConnection();
         using var cmd = new SqlCommand(sql, con);
-        cmd.Parameters.Add(new SqlParameter("@Nombre", SqlDbType.NVarChar, 24) { Value = c.Nombre });
-        cmd.Parameters.Add(new SqlParameter("@Contacto", SqlDbType.NVarChar, -1) { Value = (object?)c.Contacto ?? DBNull.Value });
-        cmd.Parameters.Add(new SqlParameter("@Estado", SqlDbType.Bit) { Value = c.Estado });
+        cmd.Parameters.Add(new SqlParameter("@Nombre", SqlDbType.NVarChar, 24) { Value = c.Username });
+        cmd.Parameters.Add(new SqlParameter("@Contacto", SqlDbType.NVarChar, -1) { Value = (object?)c.Contact ?? DBNull.Value });
+        cmd.Parameters.Add(new SqlParameter("@Estado", SqlDbType.Bit) { Value = c.State });
         await con.OpenAsync();
 
         var obj = await cmd.ExecuteScalarAsync();
@@ -86,7 +86,7 @@ VALUES (@Nombre, @Contacto, @Estado);";
         throw new InvalidOperationException("El INSERT no devolvió ClienteID.");
     }
 
-    public async Task<bool> UpdateAsync(Cliente c)
+    public async Task<bool> UpdateAsync(Client c)
     {
         const string sql = @"
 UPDATE dbo.Cliente
@@ -95,10 +95,10 @@ UPDATE dbo.Cliente
 
         using var con = _db.GetConnection();
         using var cmd = new SqlCommand(sql, con);
-        cmd.Parameters.Add(new SqlParameter("@ClienteID", SqlDbType.Int) { Value = c.ClienteID });
-        cmd.Parameters.Add(new SqlParameter("@Nombre", SqlDbType.NVarChar, 24) { Value = c.Nombre });
-        cmd.Parameters.Add(new SqlParameter("@Contacto", SqlDbType.NVarChar, -1) { Value = (object?)c.Contacto ?? DBNull.Value });
-        cmd.Parameters.Add(new SqlParameter("@Estado", SqlDbType.Bit) { Value = c.Estado });
+        cmd.Parameters.Add(new SqlParameter("@ClienteID", SqlDbType.Int) { Value = c.ClientID });
+        cmd.Parameters.Add(new SqlParameter("@Nombre", SqlDbType.NVarChar, 24) { Value = c.Username});
+        cmd.Parameters.Add(new SqlParameter("@Contacto", SqlDbType.NVarChar, -1) { Value = (object?)c.Contact ?? DBNull.Value });
+        cmd.Parameters.Add(new SqlParameter("@Estado", SqlDbType.Bit) { Value = c.State });
         await con.OpenAsync();
         return await cmd.ExecuteNonQueryAsync() > 0;
     }
@@ -113,14 +113,14 @@ UPDATE dbo.Cliente
         return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
-    public async Task<bool> ExistsByNombreAsync(string nombre, int? excludeId = null)
+    public async Task<bool> ExistsByNombreAsync(string username, int? excludeId = null)
     {
         var sql = "SELECT 1 FROM dbo.Cliente WHERE Nombre=@n";
         if (excludeId.HasValue) sql += " AND ClienteID<>@id";
 
         using var con = _db.GetConnection();
         using var cmd = new SqlCommand(sql, con);
-        cmd.Parameters.Add(new SqlParameter("@n", SqlDbType.NVarChar, 24) { Value = nombre });
+        cmd.Parameters.Add(new SqlParameter("@n", SqlDbType.NVarChar, 24) { Value = username });
         if (excludeId.HasValue)
             cmd.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = excludeId.Value });
 
