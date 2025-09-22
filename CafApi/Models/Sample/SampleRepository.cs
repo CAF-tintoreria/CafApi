@@ -1,0 +1,183 @@
+﻿using CafApi.Data;
+using Microsoft.Data.SqlClient;
+using System.Data;
+using static CafApi.Models.Sample.SampleDTO;
+
+namespace CafApi.Models.Sample
+{
+    public class SampleRepository :ISampleRepository
+    {
+        private readonly Db _db;
+
+        public SampleRepository(Db db)
+        {
+            _db = db;
+        }
+
+        public async Task<int> CreateAsync(CreateSampleDTO sample)
+        {
+                const string query = @"
+    INSERT INTO dbo.Muestra (TipoPrenda, PesoKilos, ClienteID, EstadoMuestraID, FechaCambio)
+    OUTPUT INSERTED.MuestraID
+    VALUES (@TipoPrenda, @PesoKilos, @ClienteID, @EstadoMuestraID, @FechaCambio)";
+
+            try
+            {
+                using var connection = _db.GetConnection();
+                using var command = new SqlCommand(query, connection);
+                await connection.OpenAsync();
+
+                command.Parameters.AddWithValue("@TipoPrenda", sample.ClotheType);
+                command.Parameters.AddWithValue("@PesoKilos", sample.KilogramWeight);
+                command.Parameters.AddWithValue("@ClienteID", sample.ClientID);
+                command.Parameters.AddWithValue("@EstadoMuestraID", sample.SampleStatusID);
+                command.Parameters.Add(new SqlParameter("@FechaCambio", SqlDbType.DateTime) { Value = (object?)sample.ModifiedAt ?? DBNull.Value });
+
+                return (int)await command.ExecuteScalarAsync();
+            }
+            catch(Exception ex) {
+                throw new Exception($"Error de base de datos al obtener Muestra", ex);
+            }
+        }
+
+        public Task<int> DeleteAsync(int id)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<IEnumerable<SampleDetailDTO>> GetAllAsync()
+        {
+            const string query = @"
+                SELECT * FROM dbo.Muestra 
+                JOIN Cliente on Cliente.ClienteID = dbo.Muestra.ClienteID";
+            try
+            {
+                using var connection = _db.GetConnection();
+                using var command = new SqlCommand(query, connection);
+
+                await connection.OpenAsync();
+                using var reader = await command.ExecuteReaderAsync();
+
+                List<SampleDetailDTO> samples = [];
+                List<Cliente> clients = [];
+
+                while (await reader.ReadAsync())
+                {
+                    
+                        samples.Add(new SampleDetailDTO
+                        {
+                            ClotheType = reader.GetString(reader.GetOrdinal("TipoPrenda")),
+                            KilogramWeight = reader.GetDecimal(reader.GetOrdinal("PesoKilos")),
+                            Client = new()
+                            {
+                                ClienteID = reader.GetInt32(reader.GetOrdinal("ClienteID")),
+                                Contacto = reader.GetString(reader.GetOrdinal("Contacto")),
+                                Estado = reader.GetBoolean(reader.GetOrdinal("Estado")),
+                                Nombre = reader.GetString(reader.GetOrdinal("Nombre")),
+                            }
+                        });
+
+                    
+                }
+                return samples;
+            }
+            catch(Exception ex)
+            {
+                throw new Exception($"Error de base de datos al obtener Muestra", ex);
+            }
+        }
+
+        public async Task<SampleDetailDTO?> GetByIdAsync(int sampleId)
+        {
+            const string query = @"
+                SELECT * FROM dbo.Muestra 
+                JOIN Cliente on Cliente.ClienteID = dbo.Muestra.ClienteID
+                where Muestra.MuestraID = @SampleId";
+
+            try
+            {
+                using var connection = _db.GetConnection();
+                using var command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@SampleId", sampleId);
+
+                await connection.OpenAsync();
+                using var reader = await command.ExecuteReaderAsync();
+
+                SampleDetailDTO sample = null;
+                Cliente client = new() { };
+
+                while (await reader.ReadAsync())
+                {
+                    if (sample is null)
+                    {
+                        sample = new()
+                        {
+                            ClotheType = reader.GetString(reader.GetOrdinal("TipoPrenda")),
+                            KilogramWeight = reader.GetDecimal(reader.GetOrdinal("PesoKilos"))
+                        };
+                    }
+
+                    if(!reader.IsDBNull("ClienteID"))
+                    {
+                        client = new()
+                        {
+                            ClienteID = reader.GetInt32(reader.GetOrdinal("ClienteID")),
+                            Contacto = reader.GetString(reader.GetOrdinal("Contacto")),
+                            Estado = reader.GetBoolean(reader.GetOrdinal("Estado")),
+                            Nombre = reader.GetString(reader.GetOrdinal("Nombre")),
+                        };
+                    }
+                    if(sample is not null)
+                    {
+                        sample.Client = client;
+
+                    }
+
+
+                }
+                return sample;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error de base de datos al obtener Muestra", ex);
+            }
+        }
+
+        public async Task<int> UpdateAsync(UpdateSampleDTO sample)
+        {
+            try
+            {
+                using var connection = _db.GetConnection();
+                await connection.OpenAsync();
+
+                const string query = @"
+                    UPDATE [dbo].[Muestra]
+                       SET TipoPrenda = @ClotheType
+                          ,[PesoKilos] = @KilogramWeight
+                          ,[ClienteID] = @ClientID
+                          ,[EstadoMuestraID] = @SampleStatusID
+                          ,[FechaCambio] = @ModifiedAt
+                     WHERE Muestra.MuestraID =  @SampleID";
+
+                using var command = new SqlCommand(query, connection);
+
+                command.Parameters.AddWithValue("@ClotheType", sample.ClotheType);
+                command.Parameters.AddWithValue("@KilogramWeight", sample.KilogramWeight);
+                command.Parameters.AddWithValue("@ClientID", sample.ClientID);
+                command.Parameters.AddWithValue("@SampleStatusID", sample.SampleStatusID);
+                command.Parameters.AddWithValue("@ModifiedAt", DateTime.Now);
+                command.Parameters.AddWithValue("@SampleID", sample.SampleID);
+
+                int rowsAffected = await command.ExecuteNonQueryAsync();
+
+                if (rowsAffected > 0) return sample.SampleID;
+
+                return -1;
+
+            }
+            catch (Exception ex) {
+                throw new Exception($"Error de base de datos al actualizar Muestra", ex);
+            }
+        }
+    }
+}
