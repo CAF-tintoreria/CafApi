@@ -20,6 +20,6 @@
 
     public class SampleDetailDTO : SampleDTO
     {
-        public Cliente Client {get; set; }
+        public Client Client {get; set; }
     }
 }

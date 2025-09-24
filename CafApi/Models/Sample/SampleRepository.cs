@@ -59,7 +59,7 @@ namespace CafApi.Models.Sample
                 using var reader = await command.ExecuteReaderAsync();
 
                 List<SampleDetailDTO> samples = [];
-                List<Cliente> clients = [];
+                List<Client> clients = [];
 
                 while (await reader.ReadAsync())
                 {
@@ -70,10 +70,10 @@ namespace CafApi.Models.Sample
                             KilogramWeight = reader.GetDecimal(reader.GetOrdinal("PesoKilos")),
                             Client = new()
                             {
-                                ClienteID = reader.GetInt32(reader.GetOrdinal("ClienteID")),
-                                Contacto = reader.GetString(reader.GetOrdinal("Contacto")),
-                                Estado = reader.GetBoolean(reader.GetOrdinal("Estado")),
-                                Nombre = reader.GetString(reader.GetOrdinal("Nombre")),
+                                ClientID = reader.GetInt32(reader.GetOrdinal("ClienteID")),
+                                Contact = reader.GetString(reader.GetOrdinal("Contacto")),
+                                State = reader.GetBoolean(reader.GetOrdinal("Estado")),
+                                Username = reader.GetString(reader.GetOrdinal("Nombre")),
                             }
                         });
 
@@ -104,7 +104,7 @@ namespace CafApi.Models.Sample
                 using var reader = await command.ExecuteReaderAsync();
 
                 SampleDetailDTO sample = null;
-                Cliente client = new() { };
+                Client client = new() { };
 
                 while (await reader.ReadAsync())
                 {
@@ -121,10 +121,10 @@ namespace CafApi.Models.Sample
                     {
                         client = new()
                         {
-                            ClienteID = reader.GetInt32(reader.GetOrdinal("ClienteID")),
-                            Contacto = reader.GetString(reader.GetOrdinal("Contacto")),
-                            Estado = reader.GetBoolean(reader.GetOrdinal("Estado")),
-                            Nombre = reader.GetString(reader.GetOrdinal("Nombre")),
+                            ClientID = reader.GetInt32(reader.GetOrdinal("ClienteID")),
+                            Contact = reader.GetString(reader.GetOrdinal("Contacto")),
+                            State = reader.GetBoolean(reader.GetOrdinal("Estado")),
+                            Username = reader.GetString(reader.GetOrdinal("Nombre")),
                         };
                     }
                     if(sample is not null)

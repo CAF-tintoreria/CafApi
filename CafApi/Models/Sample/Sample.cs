@@ -9,7 +9,7 @@
         public int SampleStatusID { get; set; }
         public DateTime ModifiedAt { get; set; }
 
-        public Cliente Client { get; set; }
+        public Client Client { get; set; }
 
     }
 }

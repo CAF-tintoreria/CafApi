@@ -87,7 +87,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
-builder.Services.AddScoped<ClienteRepository>();
+builder.Services.AddScoped<ClientsRepository>();
 builder.Services.AddScoped<ISampleRepository, SampleRepository>();
 
 var app = builder.Build();
