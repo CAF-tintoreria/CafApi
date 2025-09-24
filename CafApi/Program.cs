@@ -1,4 +1,5 @@
 ﻿using CafApi.Data;
+using CafApi.Models.SampleState;
 using CafApi.Utils;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -46,6 +47,7 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddSingleton<Db>();
 builder.Services.AddScoped<UsersRepository>();
 builder.Services.AddScoped<ClientsRepository>();
+builder.Services.AddScoped<ISampleStateRepository, SampleStateRepository>();
 builder.Services.AddSingleton<PasswordHasher>();
 builder.Services.AddSingleton<JwtTokenService>();
 
