@@ -1,74 +1,176 @@
-﻿using CafApi.Models;
+﻿// Controllers/ProcessController.cs
+using CafApi.Data;
+using CafApi.Models;
+using CafApi.Utils;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 
 namespace CafApi.Controllers;
 
+[Authorize]
 [ApiController]
-[Route("api/[controller]")]                 // => /api/processes
-public class ProcesoController : ControllerBase
+[Route("api/[controller]")]
+public class ProcessController : ControllerBase
 {
-    // GET /api/processes?name=&onlyActive=
+    private readonly ProcessRepository _repo;
+    private readonly JwtTokenService _tokenSvc;
+
+    public ProcessController(ProcessRepository repo, JwtTokenService tokenSvc)
+    {
+        _repo = repo;
+        _tokenSvc = tokenSvc;
+    }
+
+    //GET
     [HttpGet]
-    public ActionResult<IEnumerable<Process>> Get([FromQuery] string? name, [FromQuery] bool onlyActive = false)
+    public async Task<ActionResult> Get([FromQuery] string? name)
     {
-        IEnumerable<Process> q = ProcesoRepo.GetAll();
+        try
+        {
+            var data = await _repo.GetAllAsync();
+            if (!string.IsNullOrWhiteSpace(name))
+                data = data.Where(p => p.TypeProcess.Contains(name, StringComparison.OrdinalIgnoreCase));
 
-        if (onlyActive) q = q.Where(p => p.Activo);
-        if (!string.IsNullOrWhiteSpace(name))
-            q = q.Where(p => p.TypeProcess.Contains(name, StringComparison.OrdinalIgnoreCase));
-
-        return Ok(q);
+            return Ok(new { ok = true, data });
+        }
+        catch (Exception)
+        {
+            return Problem500Dev("No se pudo obtener el listado de procesos.");
+        }
     }
 
-    // GET /api/processes/5
+    //GET
     [HttpGet("{id:int}")]
-    public ActionResult<Process> GetById(int id)
+    public async Task<ActionResult> GetById(int id)
     {
-        var p = ProcesoRepo.Get(id);
-        return p is null ? NotFound() : Ok(p);
+        try
+        {
+            var proc = await _repo.GetByIdAsync(id);
+            return proc is null
+                ? NotFound(new { ok = false, message = "Proceso no encontrado." })
+                : Ok(new { ok = true, data = proc });
+        }
+        catch (Exception)
+        {
+            return Problem500Dev("No se pudo obtener el proceso.");
+        }
     }
 
-    // POST /api/processes
+    public class ProcessCreateDto
+    {
+        public string TypeProcess { get; set; } = "";
+        public string? Observations { get; set; }
+    }
+
+    public class ProcessUpdateDto
+    {
+        public string TypeProcess { get; set; } = "";
+        public string? Observations { get; set; }
+    }
+
+    //POST
     [HttpPost]
-    public ActionResult<Process> Create([FromBody] Process model)
+    public async Task<ActionResult> Create([FromBody] ProcessCreateDto dto)
     {
-        if (string.IsNullOrWhiteSpace(model.TipoProceso))
-            ModelState.AddModelError(nameof(model.TipoProceso), "El tipo de proceso es obligatorio.");
-        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        if (string.IsNullOrWhiteSpace(dto.TypeProcess))
+            return BadRequest(new { ok = false, message = "TypeProcess es requerido." });
+        if (dto.TypeProcess.Length > 80)
+            return BadRequest(new { ok = false, message = "TypeProcess no puede superar 80 caracteres." });
 
-        var dup = ProcesoRepo.GetAll().Any(x =>
-            x.TipoProceso.Equals(model.TipoProceso, StringComparison.OrdinalIgnoreCase));
-        if (dup) return Conflict(new { message = "Ya existe un proceso con ese nombre." });
+        try
+        {
+            if (await _repo.ExistsByNameAsync(dto.TypeProcess))
+                return Conflict(new { ok = false, message = "Ya existe un proceso con ese nombre." });
 
-        ProcesoRepo.Add(model);
-        return CreatedAtAction(nameof(GetById), new { id = model.IdProceso }, model);
+            var entity = new Process
+            {
+                TypeProcess = dto.TypeProcess.Trim(),
+                Observations = dto.Observations
+            };
+
+            var newId = await _repo.CreateAsync(entity);
+            return CreatedAtAction(nameof(GetById), new { id = newId },
+                new { ok = true, message = "Proceso creado correctamente." });
+        }
+        catch (SqlException)
+        {
+            return Problem500Dev("Error de base de datos al crear el proceso.");
+        }
+        catch (Exception)
+        {
+            return Problem500Dev("No se pudo crear el proceso.");
+        }
     }
 
-    // PUT /api/processes/5
+    //PUT
     [HttpPut("{id:int}")]
-    public IActionResult Update(int id, [FromBody] Process model)
+    public async Task<ActionResult> Update(int id, [FromBody] ProcessUpdateDto dto)
     {
-        if (id != model.IdProceso)
-            return BadRequest(new { message = "El id de la ruta no coincide con el del cuerpo." });
+        if (dto.TypeProcess.Length > 80)
+            return BadRequest(new { ok = false, message = "TypeProcess no puede superar 80 caracteres." });
 
-        if (string.IsNullOrWhiteSpace(model.TipoProceso))
-            ModelState.AddModelError(nameof(model.TipoProceso), "El tipo de proceso es obligatorio.");
-        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        try
+        {
+            var existing = await _repo.GetByIdAsync(id);
+            if (existing is null)
+                return NotFound(new { ok = false, message = "Proceso no encontrado." });
 
-        var ok = ProcesoRepo.Update(model);
-        return ok ? NoContent() : NotFound();
+            if (await _repo.ExistsByNameAsync(dto.TypeProcess, excludeId: id))
+                return Conflict(new { ok = false, message = "Ya existe otro proceso con ese nombre." });
+
+            var entity = new Process
+            {
+                ProcessID = id,
+                TypeProcess = dto.TypeProcess.Trim(),
+                Observations = dto.Observations
+            };
+
+            var ok = await _repo.UpdateAsync(entity);
+            return ok
+                ? Ok(new { ok = true, message = "Proceso editado correctamente." })
+                : StatusCode(500, new { ok = false, message = "No se pudo actualizar." });
+        }
+        catch (SqlException)
+        {
+            return Problem500Dev("Error de base de datos al actualizar el proceso.");
+        }
+        catch (Exception)
+        {
+            return Problem500Dev("No se pudo actualizar el proceso.");
+        }
     }
 
-    // DELETE /api/processes/5  (baja lógica)
+    //DELETE
     [HttpDelete("{id:int}")]
-    public IActionResult Delete(int id)
+    public async Task<ActionResult> Delete(int id)
     {
-        var p = ProcesoRepo.Get(id);
-        if (p is null) return NotFound();
+        try
+        {
+            if (await _repo.GetByIdAsync(id) is null)
+                return NotFound(new { ok = false, message = "Proceso no encontrado." });
 
-        ProcesoRepo.SoftDelete(id); //
-        return NoContent();
+            var ok = await _repo.DeleteAsync(id);
+            return ok
+                ? Ok(new { ok = true, message = "Proceso eliminado correctamente." })
+                : StatusCode(500, new { ok = false, message = "No se pudo eliminar." });
+        }
+        catch (SqlException)
+        {
+            return Problem500Dev("Error de base de datos al eliminar el proceso.");
+        }
+        catch (Exception)
+        {
+            return Problem500Dev("No se pudo eliminar el proceso.");
+        }
+    }
+
+    private ObjectResult Problem500Dev(string userMessage)
+    {
+#if DEBUG
+        return StatusCode(500, new { ok = false, message = userMessage /*, detail = ex.Message */});
+#else
+        return StatusCode(500, new { ok = false, message = userMessage });
+#endif
     }
 }
-
-

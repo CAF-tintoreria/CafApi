@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿
+using System.ComponentModel.DataAnnotations;
 
 namespace CafApi.Models
 {
@@ -7,10 +8,9 @@ namespace CafApi.Models
         public int ProcessID { get; set; }
 
         [Required, StringLength(80)]
-        public required Enum TypeProcess { get; set; }   // "Batik", "Gel", "Nevado"
+        public string TypeProcess { get; set; } = "";  
 
         [StringLength(300)]
-        public string? Observations { get; set; }         // opcional
-        
+        public string? Observations { get; set; }      
     }
 }
