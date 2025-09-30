@@ -17,7 +17,7 @@ namespace CafApi.Data
         public async Task<IEnumerable<Process>> GetAllAsync()
         {
             var list = new List<Process>();
-            const string sql = @"SELECT ProcessID, TipoProceso, Observaciones FROM dbo.Proceso";
+            const string sql = @"SELECT ProcesoID, TipoProceso, Observaciones FROM dbo.Proceso";
 
             using var con = _db.GetConnection();
             using var cmd = new SqlCommand(sql, con);
@@ -28,7 +28,7 @@ namespace CafApi.Data
             {
                 list.Add(new Process
                 {
-                    ProcessID = rd.GetInt32(rd.GetOrdinal("ProcessID")),
+                    ProcessID = rd.GetInt32(rd.GetOrdinal("ProcesoID")),
                     TypeProcess = rd.GetString(rd.GetOrdinal("TipoProceso")),
                     Observations = rd.IsDBNull(rd.GetOrdinal("Observaciones")) ? null : rd.GetString(rd.GetOrdinal("Observaciones"))
                 });
@@ -38,9 +38,9 @@ namespace CafApi.Data
 
         public async Task<Process?> GetByIdAsync(int id)
         {
-            const string sql = @"SELECT ProcessID, TipoProceso, Observaciones
+            const string sql = @"SELECT ProcesoID, TipoProceso, Observaciones
                                  FROM dbo.Proceso
-                                 WHERE ProcessID = @id";
+                                 WHERE ProcesoID = @id";
 
             using var con = _db.GetConnection();
             using var cmd = new SqlCommand(sql, con);
@@ -52,7 +52,7 @@ namespace CafApi.Data
 
             return new Process
             {
-                ProcessID = rd.GetInt32(rd.GetOrdinal("ProcessID")),
+                ProcessID = rd.GetInt32(rd.GetOrdinal("ProcesoID")),
                 TypeProcess = rd.GetString(rd.GetOrdinal("TipoProceso")),
                 Observations = rd.IsDBNull(rd.GetOrdinal("Observaciones")) ? null : rd.GetString(rd.GetOrdinal("Observaciones"))
             };
@@ -61,7 +61,7 @@ namespace CafApi.Data
         public async Task<bool> ExistsByNameAsync(string typeProcess, int? excludeId = null)
         {
             var sql = "SELECT 1 FROM dbo.Proceso WHERE TipoProceso = @tipo";
-            if (excludeId.HasValue) sql += " AND ProcessID <> @id";
+            if (excludeId.HasValue) sql += " AND ProcesoID <> @id";
 
             using var con = _db.GetConnection();
             using var cmd = new SqlCommand(sql, con);
@@ -75,49 +75,72 @@ namespace CafApi.Data
 
         public async Task<int> CreateAsync(Process model)
         {
-            const string sql = @"INSERT INTO dbo.Proceso (TipoProceso, Observaciones)
-                                 OUTPUT INSERTED.ProcessID
-                                 VALUES (@tipo, @obs)";
+            try
+            {
 
-            using var con = _db.GetConnection();
-            using var cmd = new SqlCommand(sql, con);
-            cmd.Parameters.Add(new SqlParameter("@tipo", SqlDbType.NVarChar, 80) { Value = model.TypeProcess });
-            cmd.Parameters.Add(new SqlParameter("@obs", SqlDbType.NVarChar, 300) { Value = (object?)model.Observations ?? DBNull.Value });
+                const string sql = @"INSERT INTO dbo.Proceso (TipoProceso, Observaciones)
+                                     OUTPUT INSERTED.ProcesoID
+                                     VALUES (@tipo, @obs)";
 
-            await con.OpenAsync();
-            var newId = (int)(await cmd.ExecuteScalarAsync()!);
-            return newId;
+                using var con = _db.GetConnection();
+                using var cmd = new SqlCommand(sql, con);
+                cmd.Parameters.Add(new SqlParameter("@tipo", SqlDbType.NVarChar, 80) { Value = model.TypeProcess });
+                cmd.Parameters.Add(new SqlParameter("@obs", SqlDbType.NVarChar, 300) { Value = (object?)model.Observations ?? DBNull.Value });
+
+                await con.OpenAsync();
+                var newId = (int)(await cmd.ExecuteScalarAsync()!);
+                return newId;
+            }
+            catch(Exception ex)
+            {
+                throw new Exception("Ocurrio un error en la base de datos", ex);
+            }
         }
 
         public async Task<bool> UpdateAsync(Process model)
         {
-            const string sql = @"UPDATE dbo.Proceso
-                                 SET  TipoProceso   = @tipo,
-                                      Observaciones = @obs
-                                 WHERE ProcessID    = @id";
+            try
+            {
+                const string sql = @"UPDATE dbo.Proceso
+                                     SET  TipoProceso   = @tipo,
+                                          Observaciones = @obs
+                                     WHERE ProcesoID    = @id";
 
-            using var con = _db.GetConnection();
-            using var cmd = new SqlCommand(sql, con);
-            cmd.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = model.ProcessID });
-            cmd.Parameters.Add(new SqlParameter("@tipo", SqlDbType.NVarChar, 80) { Value = model.TypeProcess });
-            cmd.Parameters.Add(new SqlParameter("@obs", SqlDbType.NVarChar, 300) { Value = (object?)model.Observations ?? DBNull.Value });
+                using var con = _db.GetConnection();
+                using var cmd = new SqlCommand(sql, con);
+                cmd.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = model.ProcessID });
+                cmd.Parameters.Add(new SqlParameter("@tipo", SqlDbType.NVarChar, 80) { Value = model.TypeProcess });
+                cmd.Parameters.Add(new SqlParameter("@obs", SqlDbType.NVarChar, 300) { Value = (object?)model.Observations ?? DBNull.Value });
 
-            await con.OpenAsync();
-            var rows = await cmd.ExecuteNonQueryAsync();
-            return rows > 0;
+                await con.OpenAsync();
+                var rows = await cmd.ExecuteNonQueryAsync();
+                return rows > 0;
+
+            } catch (Exception ex)
+            {
+                throw new Exception("Ocurrio un error", ex);
+            }
         }
 
         public async Task<bool> DeleteAsync(int id)
         {
-            const string sql = @"DELETE FROM dbo.Proceso WHERE ProcessID = @id";
+            try
+            {
 
-            using var con = _db.GetConnection();
-            using var cmd = new SqlCommand(sql, con);
-            cmd.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = id });
+                const string sql = @"DELETE FROM dbo.Proceso WHERE ProcesoID = @id";
 
-            await con.OpenAsync();
-            var rows = await cmd.ExecuteNonQueryAsync();
-            return rows > 0;
+                using var con = _db.GetConnection();
+                using var cmd = new SqlCommand(sql, con);
+                cmd.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = id });
+
+                await con.OpenAsync();
+                var rows = await cmd.ExecuteNonQueryAsync();
+                return rows > 0;
+
+            }catch(Exception ex)
+            {
+                throw new Exception("Ocurrio un error en el proceso");
+            }
         }
     }
 }
