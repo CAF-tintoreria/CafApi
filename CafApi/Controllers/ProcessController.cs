@@ -1,6 +1,8 @@
 ﻿// Controllers/ProcessController.cs
+using CafApi.Constants.Enum;
 using CafApi.Data;
 using CafApi.Models;
+using CafApi.Models.DTO;
 using CafApi.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +10,7 @@ using Microsoft.Data.SqlClient;
 
 namespace CafApi.Controllers;
 
-//[Authorize]
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class ProcessController : ControllerBase
@@ -29,10 +31,17 @@ public class ProcessController : ControllerBase
         try
         {
             var data = await _repo.GetAllAsync();
-            if (!string.IsNullOrWhiteSpace(name))
-                data = data.Where(p => p.TypeProcess.Contains(name, StringComparison.OrdinalIgnoreCase));
+            List<ProcessDTO> processList = data.Select(item => new ProcessDTO
+            { 
+                TypeProcess = item.TypeProcess.ToString(),
+                Observations = item.Observations,
+                ProcessID = item.ProcessID,
+            }).ToList();
 
-            return Ok(new { ok = true, data });
+            if (!string.IsNullOrWhiteSpace(name) && Enum.TryParse(typeof(ETypeProcess), name, out _))
+                processList.Where(p => p.TypeProcess.Contains(name, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            return Ok(new { ok = true, processList });
         }
         catch (Exception)
         {
@@ -47,9 +56,16 @@ public class ProcessController : ControllerBase
         try
         {
             var proc = await _repo.GetByIdAsync(id);
-            return proc is null
-                ? NotFound(new { ok = false, message = "Proceso no encontrado." })
-                : Ok(new { ok = true, data = proc });
+            if (proc is null) return NotFound(new { ok = false, message = "Proceso no encontrado." });
+
+            ProcessDTO parsedProcess = new()
+            {
+                TypeProcess = proc.TypeProcess.ToString(),
+                Observations = proc.Observations,
+                ProcessID = proc.ProcessID,
+            };
+
+            return Ok(new { ok = true, data = parsedProcess });
         }
         catch (Exception)
         {
@@ -57,23 +73,13 @@ public class ProcessController : ControllerBase
         }
     }
 
-    public class ProcessCreateDto
-    {
-        public string TypeProcess { get; set; } = "";
-        public string? Observations { get; set; }
-    }
-
-    public class ProcessUpdateDto
-    {
-        public string TypeProcess { get; set; } = "";
-        public string? Observations { get; set; }
-    }
+    
 
     //POST
     [HttpPost]
     public async Task<ActionResult> Create([FromBody] ProcessCreateDto dto)
     {
-        if (string.IsNullOrWhiteSpace(dto.TypeProcess))
+        if (string.IsNullOrWhiteSpace(dto.TypeProcess) || !Enum.TryParse<ETypeProcess>(dto.TypeProcess, out var eTypeProcess))
             return BadRequest(new { ok = false, message = "TypeProcess es requerido." });
         if (dto.TypeProcess.Length > 80)
             return BadRequest(new { ok = false, message = "TypeProcess no puede superar 80 caracteres." });
@@ -85,7 +91,7 @@ public class ProcessController : ControllerBase
 
             var entity = new Process
             {
-                TypeProcess = dto.TypeProcess.Trim(),
+                TypeProcess = eTypeProcess,
                 Observations = dto.Observations
             };
 
@@ -107,6 +113,9 @@ public class ProcessController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<ActionResult> Update(int id, [FromBody] ProcessUpdateDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.TypeProcess) || !Enum.TryParse<ETypeProcess>(dto.TypeProcess, out var eTypeProcess))
+            return BadRequest(new { ok = false, message = "TypeProcess es requerido." });
+
         if (dto.TypeProcess.Length > 80)
             return BadRequest(new { ok = false, message = "TypeProcess no puede superar 80 caracteres." });
 
@@ -122,7 +131,7 @@ public class ProcessController : ControllerBase
             var entity = new Process
             {
                 ProcessID = id,
-                TypeProcess = dto.TypeProcess.Trim(),
+                TypeProcess = eTypeProcess,
                 Observations = dto.Observations
             };
 
@@ -142,7 +151,6 @@ public class ProcessController : ControllerBase
     }
 
     //DELETE
-    [AllowAnonymous]
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> Delete(int id)
     {

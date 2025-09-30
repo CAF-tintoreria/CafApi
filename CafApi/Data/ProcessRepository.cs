@@ -1,4 +1,5 @@
 ﻿// Data/ProcessRepository.cs
+using CafApi.Constants.Enum;
 using CafApi.Models;
 using Microsoft.Data.SqlClient;
 using System.Data;
@@ -29,7 +30,7 @@ namespace CafApi.Data
                 list.Add(new Process
                 {
                     ProcessID = rd.GetInt32(rd.GetOrdinal("ProcesoID")),
-                    TypeProcess = rd.GetString(rd.GetOrdinal("TipoProceso")),
+                    TypeProcess = (ETypeProcess)Enum.Parse(typeof(ETypeProcess), rd.GetString(rd.GetOrdinal("TipoProceso"))),
                     Observations = rd.IsDBNull(rd.GetOrdinal("Observaciones")) ? null : rd.GetString(rd.GetOrdinal("Observaciones"))
                 });
             }
@@ -53,7 +54,7 @@ namespace CafApi.Data
             return new Process
             {
                 ProcessID = rd.GetInt32(rd.GetOrdinal("ProcesoID")),
-                TypeProcess = rd.GetString(rd.GetOrdinal("TipoProceso")),
+                TypeProcess = (ETypeProcess)Enum.Parse(typeof(ETypeProcess), rd.GetString(rd.GetOrdinal("TipoProceso"))),
                 Observations = rd.IsDBNull(rd.GetOrdinal("Observaciones")) ? null : rd.GetString(rd.GetOrdinal("Observaciones"))
             };
         }
