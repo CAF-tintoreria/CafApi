@@ -8,7 +8,7 @@ using Microsoft.Data.SqlClient;
 
 namespace CafApi.Controllers;
 
-[Authorize]
+//[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class ProcessController : ControllerBase
@@ -142,6 +142,7 @@ public class ProcessController : ControllerBase
     }
 
     //DELETE
+    [AllowAnonymous]
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> Delete(int id)
     {
