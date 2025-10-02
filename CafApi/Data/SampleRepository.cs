@@ -1,11 +1,13 @@
-﻿using CafApi.Data;
+﻿using CafApi.Constants.Enum;
+using CafApi.Models;
+using CafApi.Models.Sample;
 using Microsoft.Data.SqlClient;
 using System.Data;
 using static CafApi.Models.Sample.SampleDTO;
 
-namespace CafApi.Models.Sample
+namespace CafApi.Data
 {
-    public class SampleRepository :ISampleRepository
+    public class SampleRepository : ISampleRepository
     {
         private readonly Db _db;
 
@@ -16,7 +18,7 @@ namespace CafApi.Models.Sample
 
         public async Task<int> CreateAsync(CreateSampleDTO sample)
         {
-                const string query = @"
+            const string query = @"
     INSERT INTO dbo.Muestra (TipoPrenda, PesoKilos, ClienteID, EstadoMuestraID, FechaCambio)
     OUTPUT INSERTED.MuestraID
     VALUES (@TipoPrenda, @PesoKilos, @ClienteID, @EstadoMuestraID, @FechaCambio)";
@@ -35,7 +37,8 @@ namespace CafApi.Models.Sample
 
                 return (int)await command.ExecuteScalarAsync();
             }
-            catch(Exception ex) {
+            catch (Exception ex)
+            {
                 throw new Exception($"Error de base de datos al obtener Muestra", ex);
             }
         }
@@ -48,8 +51,18 @@ namespace CafApi.Models.Sample
         public async Task<IEnumerable<SampleDetailDTO>> GetAllAsync()
         {
             const string query = @"
-                SELECT * FROM dbo.Muestra 
-                JOIN Cliente on Cliente.ClienteID = dbo.Muestra.ClienteID";
+                SELECT 
+        m.TipoPrenda,
+        m.PesoKilos,
+        c.ClienteID,
+        c.Contacto,
+        c.Estado AS EstadoCliente,
+        c.Nombre,
+        em.EstadoMuestraID,
+        em.Estado AS EstadoMuestra
+    FROM Muestra as m
+    INNER JOIN Cliente as c ON m.ClienteID = c.ClienteID
+    INNER JOIN EstadoMuestra as em ON m.EstadoMuestraID = em.EstadoMuestraID";
             try
             {
                 using var connection = _db.GetConnection();
@@ -63,25 +76,31 @@ namespace CafApi.Models.Sample
 
                 while (await reader.ReadAsync())
                 {
-                    
-                        samples.Add(new SampleDetailDTO
-                        {
-                            ClotheType = reader.GetString(reader.GetOrdinal("TipoPrenda")),
-                            KilogramWeight = reader.GetDecimal(reader.GetOrdinal("PesoKilos")),
-                            Client = new()
-                            {
-                                ClientID = reader.GetInt32(reader.GetOrdinal("ClienteID")),
-                                Contact = reader.GetString(reader.GetOrdinal("Contacto")),
-                                State = reader.GetBoolean(reader.GetOrdinal("Estado")),
-                                Username = reader.GetString(reader.GetOrdinal("Nombre")),
-                            }
-                        });
 
-                    
+                    samples.Add(new SampleDetailDTO
+                    {
+                        ClotheType = reader.GetString(reader.GetOrdinal("TipoPrenda")),
+                        KilogramWeight = reader.GetDecimal(reader.GetOrdinal("PesoKilos")),
+                        Client = new()
+                        {
+                            ClientID = reader.GetInt32(reader.GetOrdinal("ClienteID")),
+                            Contact = reader.GetString(reader.GetOrdinal("Contacto")),
+                            State = reader.GetBoolean(reader.GetOrdinal("EstadoCliente")),
+                            Username = reader.GetString(reader.GetOrdinal("Nombre")),
+                        },
+                        Status = new()
+                        {
+                            SampleStatusID = reader.GetInt32(reader.GetOrdinal("EstadoMuestraID")),
+                            Status = (ESampleStatus)Enum.Parse(typeof(ESampleStatus), reader.GetString(reader.GetOrdinal("EstadoMuestra")))
+                        }
+                        
+                    });
+
+
                 }
                 return samples;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 throw new Exception($"Error de base de datos al obtener Muestra", ex);
             }
@@ -90,9 +109,19 @@ namespace CafApi.Models.Sample
         public async Task<SampleDetailDTO?> GetByIdAsync(int sampleId)
         {
             const string query = @"
-                SELECT * FROM dbo.Muestra 
-                JOIN Cliente on Cliente.ClienteID = dbo.Muestra.ClienteID
-                where Muestra.MuestraID = @SampleId";
+                SELECT 
+                m.TipoPrenda,
+                m.PesoKilos,
+                c.ClienteID,
+                c.Contacto,
+                c.Estado AS EstadoCliente,
+                c.Nombre,
+                em.EstadoMuestraID,
+                em.Estado AS EstadoMuestra
+                FROM Muestra as m
+                INNER JOIN Cliente as c ON m.ClienteID = c.ClienteID
+                INNER JOIN EstadoMuestra as em ON m.EstadoMuestraID = em.EstadoMuestraID
+                where m.MuestraID = @SampleId";
 
             try
             {
@@ -113,21 +142,26 @@ namespace CafApi.Models.Sample
                         sample = new()
                         {
                             ClotheType = reader.GetString(reader.GetOrdinal("TipoPrenda")),
-                            KilogramWeight = reader.GetDecimal(reader.GetOrdinal("PesoKilos"))
+                            KilogramWeight = reader.GetDecimal(reader.GetOrdinal("PesoKilos")),
+                            Status = new()
+                            {
+                                SampleStatusID = reader.GetInt32(reader.GetOrdinal("EstadoMuestraID")),
+                                Status = (ESampleStatus)Enum.Parse(typeof(ESampleStatus), reader.GetString(reader.GetOrdinal("EstadoMuestra")))
+                            }
                         };
                     }
 
-                    if(!reader.IsDBNull("ClienteID"))
+                    if (!reader.IsDBNull("ClienteID"))
                     {
                         client = new()
                         {
                             ClientID = reader.GetInt32(reader.GetOrdinal("ClienteID")),
                             Contact = reader.GetString(reader.GetOrdinal("Contacto")),
-                            State = reader.GetBoolean(reader.GetOrdinal("Estado")),
+                            State = reader.GetBoolean(reader.GetOrdinal("EstadoCliente")),
                             Username = reader.GetString(reader.GetOrdinal("Nombre")),
                         };
                     }
-                    if(sample is not null)
+                    if (sample is not null)
                     {
                         sample.Client = client;
 
@@ -175,7 +209,8 @@ namespace CafApi.Models.Sample
                 return -1;
 
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 throw new Exception($"Error de base de datos al actualizar Muestra", ex);
             }
         }

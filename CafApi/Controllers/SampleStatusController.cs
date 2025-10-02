@@ -8,11 +8,11 @@ namespace CafApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class SampleStateController : ControllerBase
+    public class SampleStatusController : ControllerBase
     {
-        private readonly ISampleStateRepository _repo;
+        private readonly ISampleStatusRepository _repo;
         private readonly JwtTokenService _tokenSvc;
-        public SampleStateController(ISampleStateRepository repo, JwtTokenService tokenSvc)
+        public SampleStatusController(ISampleStatusRepository repo, JwtTokenService tokenSvc)
         {
             _repo = repo;
             _tokenSvc = tokenSvc;
@@ -23,10 +23,10 @@ namespace CafApi.Controllers
         {
             var data = await _repo.GetAllAsync();
 
-            List<SampleStateDTO> response = data.Select(item => new SampleStateDTO
+            List<SampleStatusDTO> response = data.Select(item => new SampleStatusDTO
             {
-                SampleStateID = item.SampleStateID,
-                StateName = item.State.ToString()
+                SampleStatusID = item.SampleStatusID,
+                StatusName = item.Status.ToString()
             }).ToList();
 
             return Ok(response);

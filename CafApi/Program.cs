@@ -47,7 +47,8 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddSingleton<Db>();
 builder.Services.AddScoped<UsersRepository>();
 builder.Services.AddScoped<ClientsRepository>();
-builder.Services.AddScoped<ISampleStateRepository, SampleStateRepository>();
+builder.Services.AddScoped<ISampleStatusRepository, SampleStatusRepository>();
+builder.Services.AddScoped<ISampleRepository, SampleRepository>();
 builder.Services.AddSingleton<PasswordHasher>();
 builder.Services.AddSingleton<JwtTokenService>();
 
@@ -89,8 +90,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
-builder.Services.AddScoped<ClientsRepository>();
-builder.Services.AddScoped<ISampleRepository, SampleRepository>();
+
 
 var app = builder.Build();
 

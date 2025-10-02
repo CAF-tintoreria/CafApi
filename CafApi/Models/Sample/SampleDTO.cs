@@ -1,4 +1,6 @@
-﻿namespace CafApi.Models.Sample
+﻿using CafApi.Models.SampleState;
+
+namespace CafApi.Models.Sample
 {
     public class SampleDTO
     {
@@ -21,5 +23,6 @@
     public class SampleDetailDTO : SampleDTO
     {
         public Client Client {get; set; }
+        public SampleStatus Status { get; set; }
     }
 }
