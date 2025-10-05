@@ -24,5 +24,6 @@ namespace CafApi.Models.Sample
     {
         public Client Client {get; set; }
         public SampleStatus Status { get; set; }
+        public List<Process> Processes{ get; set; }
     }
 }

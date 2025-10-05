@@ -59,10 +59,16 @@ namespace CafApi.Data
         c.Estado AS EstadoCliente,
         c.Nombre,
         em.EstadoMuestraID,
-        em.Estado AS EstadoMuestra
+        em.Estado AS EstadoMuestra,
+        mp.MuestraProcesoID,
+        p.TipoProceso,
+        p.Observaciones
     FROM Muestra as m
     INNER JOIN Cliente as c ON m.ClienteID = c.ClienteID
-    INNER JOIN EstadoMuestra as em ON m.EstadoMuestraID = em.EstadoMuestraID";
+    INNER JOIN EstadoMuestra as em ON m.EstadoMuestraID = em.EstadoMuestraID
+    LEFT JOIN MuestraProceso mp on m.MuestraID = mp.MuestraID
+    LEFT JOIN Proceso p on mp.ProcesoID = p.ProcesoID";
+
             try
             {
                 using var connection = _db.GetConnection();
@@ -72,11 +78,20 @@ namespace CafApi.Data
                 using var reader = await command.ExecuteReaderAsync();
 
                 List<SampleDetailDTO> samples = [];
-                List<Client> clients = [];
+                List<Process> processes = [];
 
                 while (await reader.ReadAsync())
                 {
+                    if (!reader.IsDBNull(reader.GetOrdinal("MuestraProcesoID")))
+                    {
+                        processes.Add(new Process()
+                        {
+                            Observations = reader.GetString(reader.GetOrdinal("Observaciones")) ?? null,
+                            TypeProcess = (ETypeProcess)Enum.Parse(typeof(ETypeProcess), reader.GetString(reader.GetOrdinal("TipoProceso")))
 
+                        });
+
+                    }
                     samples.Add(new SampleDetailDTO
                     {
                         ClotheType = reader.GetString(reader.GetOrdinal("TipoPrenda")),
@@ -92,8 +107,9 @@ namespace CafApi.Data
                         {
                             SampleStatusID = reader.GetInt32(reader.GetOrdinal("EstadoMuestraID")),
                             Status = (ESampleStatus)Enum.Parse(typeof(ESampleStatus), reader.GetString(reader.GetOrdinal("EstadoMuestra")))
-                        }
-                        
+                        },
+                       Processes = processes
+
                     });
 
 
