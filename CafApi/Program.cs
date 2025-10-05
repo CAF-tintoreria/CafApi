@@ -47,6 +47,7 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddSingleton<Db>();
 builder.Services.AddScoped<UsersRepository>();
 builder.Services.AddScoped<ClientsRepository>();
+builder.Services.AddScoped<ProcessRepository>();
 builder.Services.AddScoped<ISampleStatusRepository, SampleStatusRepository>();
 builder.Services.AddScoped<ISampleRepository, SampleRepository>();
 builder.Services.AddSingleton<PasswordHasher>();
