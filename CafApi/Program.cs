@@ -11,6 +11,21 @@ builder.Configuration.AddEnvironmentVariables();
 
 builder.Services.AddControllers();
 
+const string CorsPolicy = "FrontendPolicy";
+builder.Services.AddCors(opt =>
+{
+    opt.AddPolicy(CorsPolicy, p =>
+    {
+        p.WithOrigins(
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "https://caf-front.vercel.app/"
+        )
+        .AllowAnyHeader()     // incluye Authorization y Content-Type
+        .AllowAnyMethod();    // GET, POST, PUT, DELETE...
+    });
+});
+
 // 🔹 Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -94,6 +109,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
+app.UseCors(CorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
