@@ -101,6 +101,9 @@ public class UsersController : ControllerBase
             if (!string.IsNullOrEmpty(u.Password) && (u.Password.Length < 6 || u.Password.Length > 16))
                 return BadRequest(new { ok = false, message = "La contraseña debe tener entre 6 y 16 caracteres." });
 
+            if (await _repo.ExistsNombreExceptIdAsync(u.Username, id))
+                return Conflict(new { ok = false, message = "El nombre ya existe." });
+
             var ok = await _repo.UpdateAsync(id, u);
             if (!ok) return NotFound(new { ok = false, message = "Usuario no encontrado." });
 
@@ -117,8 +120,21 @@ public class UsersController : ControllerBase
     {
         try
         {
+            // Tomar el ID del usuario autenticado desde el token (usamos "sub")
+            var idStr =
+                User.FindFirstValue(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub) ??
+                User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+
+            if (!int.TryParse(idStr, out var currentUserId))
+                return BadRequest(new { ok = false, message = "Token inválido." });
+
+            // Bloquear auto-eliminación, sin cerrar sesión
+            if (currentUserId == id)
+                return BadRequest(new { ok = false, message = "No podés eliminar tu propio usuario." });
+
             var ok = await _repo.DeleteAsync(id);
             if (!ok) return NotFound(new { ok = false, message = "Usuario no encontrado." });
+
             return Ok(new { ok = true, message = "Usuario eliminado." });
         }
         catch (Exception ex)
@@ -126,6 +142,7 @@ public class UsersController : ControllerBase
             return Problem(title: "No se pudo eliminar el usuario.", detail: ex.Message, statusCode: 500);
         }
     }
+
 
 
     [HttpPost("change-password")]
