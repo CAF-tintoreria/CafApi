@@ -1,9 +1,11 @@
 ﻿using CafApi.Data;
+using CafApi.Models.SampleState;
 using CafApi.Utils;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json;
+using CafApi.Models.Sample;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,7 +48,8 @@ builder.Services.AddSingleton<Db>();
 builder.Services.AddScoped<UsersRepository>();
 builder.Services.AddScoped<ClientsRepository>();
 builder.Services.AddScoped<ProcessRepository>();
-
+builder.Services.AddScoped<ISampleStatusRepository, SampleStatusRepository>();
+builder.Services.AddScoped<ISampleRepository, SampleRepository>();
 builder.Services.AddSingleton<PasswordHasher>();
 builder.Services.AddSingleton<JwtTokenService>();
 
@@ -88,6 +91,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+
 
 var app = builder.Build();
 
