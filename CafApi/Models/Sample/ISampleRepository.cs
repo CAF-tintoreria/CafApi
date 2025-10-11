@@ -8,6 +8,6 @@ namespace CafApi.Models.Sample
         Task<IEnumerable<SampleDetailDTO>> GetAllAsync();
         Task<int> CreateAsync(CreateSampleDTO sample);
         Task<int> DeleteAsync(int id);
-        Task<int> UpdateAsync(UpdateSampleDTO sample);
+        Task<int> UpdateAsync(int id, CreateSampleDTO sample);
     }
 }

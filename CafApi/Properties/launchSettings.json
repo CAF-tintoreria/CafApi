@@ -18,7 +18,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "JWT__KEY": "qz2C7aP0eJcS9vN6xY4rT1uK8mL5wQ3b",
-        "ConnectionStrings__CafDb": "Server=PC-JOEL\\SQLEXPRESS;Database=CafDb;Trusted_Connection=True;TrustServerCertificate=True"
+        "ConnectionStrings__CafDb": "Server=tcp:caf-server.database.windows.net,1433;Initial Catalog=caf-db;Persist Security Info=False;User ID=admincaf;Password=Caf2025admin;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
       }
     },
     "https": {
@@ -30,7 +30,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "JWT__KEY": "qz2C7aP0eJcS9vN6xY4rT1uK8mL5wQ3b",
-        "ConnectionStrings__CafDb": "Server=PC-JOEL\\SQLEXPRESS;Database=CafDb;Trusted_Connection=True;TrustServerCertificate=True"
+        "ConnectionStrings__CafDb": "Server=tcp:caf-server.database.windows.net,1433;Initial Catalog=caf-db;Persist Security Info=False;User ID=admincaf;Password=Caf2025admin;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
       }
     },
     "IIS Express": {
@@ -40,7 +40,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "JWT__KEY": "qz2C7aP0eJcS9vN6xY4rT1uK8mL5wQ3b",
-        "ConnectionStrings__CafDb": "Server=PC-JOEL\\SQLEXPRESS;Database=CafDb;Trusted_Connection=True;TrustServerCertificate=True"
+        "ConnectionStrings__CafDb": "Server=tcp:caf-server.database.windows.net,1433;Initial Catalog=caf-db;Persist Security Info=False;User ID=admincaf;Password=Caf2025admin;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
       }
     }
   }

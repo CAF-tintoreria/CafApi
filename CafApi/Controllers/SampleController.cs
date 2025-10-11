@@ -21,9 +21,9 @@ namespace CafApi.Controllers
             try
             {
                 var data = await _sampleRepository.GetAllAsync();
-                return Ok(data);
-
-            }catch(Exception ex)
+                return Ok(new { ok = true, data });
+            }
+            catch (Exception ex)
             {
                 throw new Exception("Error en controlador", ex);
             }
@@ -38,7 +38,7 @@ namespace CafApi.Controllers
 
                 if (data == null) return NotFound("No se encontró registros con el Id ingresado:" + id);
 
-                return Ok(data);
+                return Ok(new { ok = true, data });
 
             }
             catch (Exception ex)
@@ -54,8 +54,7 @@ namespace CafApi.Controllers
                 var data = await _sampleRepository.CreateAsync(sample);
 
                 if (data < 1) return BadRequest("No se pudo crear el registro");
-
-                return Ok(data);
+                return Ok(new { ok = true, message = "Prenda creada correctamente." });
 
             }
             catch (Exception ex)
@@ -65,19 +64,19 @@ namespace CafApi.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult> Update(int id, [FromBody] UpdateSampleDTO sample)
+        public async Task<ActionResult> Update(int id, [FromBody] CreateSampleDTO sample)
         {
             try
             {
-                var existingSample = _sampleRepository.GetByIdAsync(id);
+                if (id <= 0) return BadRequest("Id inválido.");
 
-                if (existingSample is null) return NotFound("Muestra no encontrada con el Id dado: "  + id);
-                
-                var data = await _sampleRepository.UpdateAsync(sample);
+                var exists = await _sampleRepository.GetByIdAsync(id);
+                if (exists is null) return NotFound($"Muestra no encontrada: {id}");
 
-                if (data < 1) return BadRequest("No se pudo actualizar el registro");
+                var updatedId = await _sampleRepository.UpdateAsync(id, sample);
+                if (updatedId < 1) return BadRequest("No se pudo actualizar el registro");
 
-                return Ok(data);
+                return Ok(new { ok = true, message = "Muestra actualizada correctamente." });
 
             }
             catch (Exception ex)

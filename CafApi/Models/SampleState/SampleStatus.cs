@@ -6,8 +6,5 @@ namespace CafApi.Models.SampleState
     {
         public int SampleStatusID { get; set; }
         public ESampleStatus Status { get; set; }
-
-        
-
     }
 }

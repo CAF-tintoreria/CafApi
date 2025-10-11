@@ -1,17 +1,43 @@
 ﻿using CafApi.Data;
+using CafApi.Models.Sample;
 using CafApi.Models.SampleState;
 using CafApi.Utils;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json;
-using CafApi.Models.Sample;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddEnvironmentVariables();
 
-builder.Services.AddControllers();
+
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(o =>
+    {
+        o.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;      // respuestas camelCase
+        o.JsonSerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
+        o.JsonSerializerOptions.PropertyNameCaseInsensitive = true;                     // acepta camelCase al recibir
+        o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
+
+const string CorsPolicy = "FrontendPolicy";
+builder.Services.AddCors(opt =>
+{
+    opt.AddPolicy(CorsPolicy, p =>
+    {
+        p.WithOrigins(
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "https://caf-front.vercel.app/",
+            "https://nice-pond-00f989810.2.azurestaticapps.net"
+        )
+        .AllowAnyHeader()     // incluye Authorization y Content-Type
+        .AllowAnyMethod();    // GET, POST, PUT, DELETE...
+    });
+});
 
 // 🔹 Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -48,6 +74,7 @@ builder.Services.AddSingleton<Db>();
 builder.Services.AddScoped<UsersRepository>();
 builder.Services.AddScoped<ClientsRepository>();
 builder.Services.AddScoped<ProcessRepository>();
+builder.Services.AddScoped<PrendaRepository>();
 builder.Services.AddScoped<ISampleStatusRepository, SampleStatusRepository>();
 builder.Services.AddScoped<ISampleRepository, SampleRepository>();
 builder.Services.AddSingleton<PasswordHasher>();
@@ -100,6 +127,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
+app.UseCors(CorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

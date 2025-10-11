@@ -193,7 +193,7 @@ namespace CafApi.Data
             }
         }
 
-        public async Task<int> UpdateAsync(UpdateSampleDTO sample)
+        public async Task<int> UpdateAsync(int id, CreateSampleDTO sample)
         {
             try
             {
@@ -207,7 +207,7 @@ namespace CafApi.Data
                           ,[ClienteID] = @ClientID
                           ,[EstadoMuestraID] = @SampleStatusID
                           ,[FechaCambio] = @ModifiedAt
-                     WHERE Muestra.MuestraID =  @SampleID";
+                      WHERE MuestraID = @Id;";
 
                 using var command = new SqlCommand(query, connection);
 
@@ -216,13 +216,10 @@ namespace CafApi.Data
                 command.Parameters.AddWithValue("@ClientID", sample.ClientID);
                 command.Parameters.AddWithValue("@SampleStatusID", sample.SampleStatusID);
                 command.Parameters.AddWithValue("@ModifiedAt", DateTime.Now);
-                command.Parameters.AddWithValue("@SampleID", sample.SampleID);
+                command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = id });
 
-                int rowsAffected = await command.ExecuteNonQueryAsync();
-
-                if (rowsAffected > 0) return sample.SampleID;
-
-                return -1;
+                var rows = await command.ExecuteNonQueryAsync();
+                return rows > 0 ? id : -1;
 
             }
             catch (Exception ex)
