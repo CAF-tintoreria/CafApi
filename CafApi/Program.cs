@@ -3,6 +3,7 @@ using CafApi.Models.Sample;
 using CafApi.Models.SampleState;
 using CafApi.Utils;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json;
@@ -79,6 +80,7 @@ builder.Services.AddScoped<ISampleStatusRepository, SampleStatusRepository>();
 builder.Services.AddScoped<ISampleRepository, SampleRepository>();
 builder.Services.AddSingleton<PasswordHasher>();
 builder.Services.AddSingleton<JwtTokenService>();
+builder.Services.AddScoped<RolesRepository>();
 
 // JWT
 var jwtKey = builder.Configuration["Jwt:Key"]
@@ -117,7 +119,38 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+static AuthorizationPolicy BuildPermPolicy(string codigoPermiso)
+{
+    return new AuthorizationPolicyBuilder()
+        .RequireAssertion(ctx =>
+            ctx.User.IsInRole("Administrador") ||
+            ctx.User.HasClaim(c => c.Type == "perm" && c.Value == codigoPermiso))
+        .Build();
+}
+
+builder.Services.AddAuthorization(opt =>
+{
+    // Prenda
+    opt.AddPolicy("Prenda.Crear", BuildPermPolicy("Prenda.Crear"));
+    opt.AddPolicy("Prenda.Editar", BuildPermPolicy("Prenda.Editar"));
+    opt.AddPolicy("Prenda.Eliminar", BuildPermPolicy("Prenda.Eliminar"));
+
+    // Muestra
+    opt.AddPolicy("Muestra.Crear", BuildPermPolicy("Muestra.Crear"));
+    opt.AddPolicy("Muestra.Editar", BuildPermPolicy("Muestra.Editar"));
+    opt.AddPolicy("Muestra.Eliminar", BuildPermPolicy("Muestra.Eliminar"));
+
+    // Usuarios
+    opt.AddPolicy("Usuarios.Listado", BuildPermPolicy("Usuarios.Listado"));
+    opt.AddPolicy("Usuarios.Crear", BuildPermPolicy("Usuarios.Crear"));
+    opt.AddPolicy("Usuarios.Editar", BuildPermPolicy("Usuarios.Editar"));
+    opt.AddPolicy("Usuarios.Eliminar", BuildPermPolicy("Usuarios.Eliminar"));
+
+    // Clientes
+    opt.AddPolicy("Clientes.Crear", BuildPermPolicy("Clientes.Crear"));
+    opt.AddPolicy("Clientes.Editar", BuildPermPolicy("Clientes.Editar"));
+    opt.AddPolicy("Clientes.Eliminar", BuildPermPolicy("Clientes.Eliminar"));
+});
 
 
 var app = builder.Build();
