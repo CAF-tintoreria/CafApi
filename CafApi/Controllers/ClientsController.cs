@@ -111,16 +111,28 @@ public class ClientsController : ControllerBase
     {
         try
         {
-            if (await _repo.GetByIdAsync(id) is null)
+            var existing = await _repo.GetByIdAsync(id);
+            if (existing is null)
                 return NotFound(new { ok = false, message = "Cliente no encontrado." });
 
-            var ok = await _repo.DeleteAsync(id);
-            return ok
+            var deleted = await _repo.DeleteAsync(id);
+            return deleted
                 ? Ok(new { ok = true, message = "Cliente eliminado correctamente." })
-                : StatusCode(500, new { ok = false, message = "No se pudo eliminar." });
+                : StatusCode(500, new { ok = false, message = "No se pudo eliminar el cliente." });
         }
-        catch (SqlException) { return Problem500Dev("Error de base de datos al eliminar el cliente."); }
-        catch (Exception) { return Problem500Dev("No se pudo eliminar el cliente."); }
+        catch (InvalidOperationException ex)
+        {
+            // Mensaje claro para el usuario
+            return BadRequest(new { ok = false, message = ex.Message });
+        }
+        catch (SqlException)
+        {
+            return Problem500Dev("Error de base de datos al eliminar el cliente.");
+        }
+        catch (Exception)
+        {
+            return Problem500Dev("No se pudo eliminar el cliente.");
+        }
     }
 
     // Mostrar detalle solo en Debug mientras terminás de ajustar
