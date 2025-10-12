@@ -15,30 +15,29 @@ public class UsersController : ControllerBase
 {
     private readonly UsersRepository _repo;
     private readonly JwtTokenService _tokenSvc;
+    private readonly RolesRepository _rolesRepo;
 
-    public UsersController(UsersRepository repo, JwtTokenService tokenSvc)
+    public UsersController(UsersRepository repo, JwtTokenService tokenSvc, RolesRepository rolesRepo)
     {
         _repo = repo;
         _tokenSvc = tokenSvc;
+        _rolesRepo = rolesRepo;
     }
 
-    static readonly HashSet<string> RolesValidos = new(StringComparer.OrdinalIgnoreCase)
-        { "Administrador", "Ingreso" };
+
 
     private (bool ok, string? error) ValidarNuevo(UserModel u)
     {
         // nombre: >3 y <24
         if (string.IsNullOrWhiteSpace(u.Username) || u.Username.Length <= 3 || u.Username.Length >= 24)
             return (false, "El nombre debe tener más de 3 y menos de 24 caracteres.");
-        // rol
-        if (string.IsNullOrWhiteSpace(u.Role) || !RolesValidos.Contains(u.Role))
-            return (false, "El rol debe ser 'Administrador' o 'Ingreso'.");
         // contraseña: 6–16
         if (string.IsNullOrEmpty(u.Password) || u.Password.Length < 6 || u.Password.Length > 16)
             return (false, "La contraseña debe tener entre 6 y 16 caracteres.");
         return (true, null);
     }
 
+    [Authorize(Policy = "Usuarios.Crear")]
     [HttpPost]
     public async Task<ActionResult> Create([FromBody] UserModel u)
     {
@@ -50,6 +49,10 @@ public class UsersController : ControllerBase
             if (await _repo.ExistsNombreAsync(u.Username))
                 return Conflict(new { ok = false, message = "El nombre ya existe." });
 
+            var rolId = await _rolesRepo.GetRolIdByNombreAsync(u.Role ?? "");
+            if (rolId is null)
+                return BadRequest(new { ok = false, message = "El rol no existe." });
+
             await _repo.CreateAsync(u);
             return Ok(new { ok = true, message = "Usuario creado." });
         }
@@ -59,6 +62,7 @@ public class UsersController : ControllerBase
         }
     }
 
+    [Authorize(Policy = "Usuarios.Listado")]
     [HttpGet]
     public async Task<ActionResult> Get([FromQuery] string? username)
     {
@@ -88,6 +92,7 @@ public class UsersController : ControllerBase
         }
     }
 
+    [Authorize(Policy = "Usuarios.Editar")]
     [HttpPut("{id:int}")]
     public async Task<ActionResult> Update(int id, [FromBody] UserModel u)
     {
@@ -95,9 +100,6 @@ public class UsersController : ControllerBase
         {
             if (string.IsNullOrWhiteSpace(u.Username) || u.Username.Length <= 3 || u.Username.Length >= 24)
                 return BadRequest(new { ok = false, message = "El nombre debe tener más de 3 y menos de 24 caracteres." });
-            if (!RolesValidos.Contains(u.Role ?? ""))
-                return BadRequest(new { ok = false, message = "El rol debe ser 'Administrador' o 'Ingreso'." });
-
             if (!string.IsNullOrEmpty(u.Password) && (u.Password.Length < 6 || u.Password.Length > 16))
                 return BadRequest(new { ok = false, message = "La contraseña debe tener entre 6 y 16 caracteres." });
 
@@ -115,6 +117,7 @@ public class UsersController : ControllerBase
         }
     }
 
+    [Authorize(Policy = "Usuarios.Eliminar")]
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> Delete(int id)
     {

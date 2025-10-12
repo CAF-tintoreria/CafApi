@@ -57,6 +57,7 @@ public class PrendaController : ControllerBase
         return Ok(new { ok = true, data = dto });
     }
 
+    [Authorize(Policy = "Prenda.Crear")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] PrendaCreateDto dto)
     {
@@ -81,6 +82,7 @@ public class PrendaController : ControllerBase
         }
     }
 
+    [Authorize(Policy = "Prenda.Editar")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] PrendaUpdateDto dto)
     {
@@ -135,7 +137,7 @@ public class PrendaController : ControllerBase
         }
     }
 
-
+    [Authorize(Policy = "Prenda.Eliminar")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {

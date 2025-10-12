@@ -51,6 +51,7 @@ public class ClientsController : ControllerBase
         }
     }
 
+    [Authorize(Policy = "Clientes.Crear")]
     [HttpPost]
     public async Task<ActionResult> Create([FromBody] ClientCreateDto dto)
     {
@@ -74,6 +75,7 @@ public class ClientsController : ControllerBase
         catch (Exception) { return Problem500Dev("No se pudo crear el cliente."); }
     }
 
+    [Authorize(Policy = "Clientes.Editar")]
     [HttpPut("{id:int}")]
     public async Task<ActionResult> Update(int id, [FromBody] ClienteUpdateDto dto)
     {
@@ -106,6 +108,7 @@ public class ClientsController : ControllerBase
         catch (Exception) { return Problem500Dev("No se pudo actualizar el cliente."); }
     }
 
+    [Authorize(Policy = "Clientes.Eliminar")]
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> Delete(int id)
     {
