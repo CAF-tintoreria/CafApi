@@ -1,9 +1,14 @@
 ﻿using CafApi.Models.SampleState;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CafApi.Models.Sample
 {
     public class SampleDTO
     {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int MuestraID { get; set; }
         public string ClotheType { get; set; }
         public decimal KilogramWeight { get; set; }
         public DateTime? ModifiedAt { get; set; }

@@ -105,12 +105,34 @@ UPDATE dbo.Cliente
 
     public async Task<bool> DeleteAsync(int id)
     {
-        const string sql = @"DELETE FROM dbo.Cliente WHERE ClienteID=@id";
+        // Validar que no tenga prendas o muestras asociadas
+        const string checkSql = @"
+        SELECT 
+            CASE 
+                WHEN EXISTS (SELECT 1 FROM dbo.Prenda WHERE ClienteID = @id) THEN 1
+                WHEN EXISTS (SELECT 1 FROM dbo.Muestra WHERE ClienteID = @id) THEN 1
+                ELSE 0 
+            END;";
+
+        const string deleteSql = @"DELETE FROM dbo.Cliente WHERE ClienteID = @id;";
+
         using var con = _db.GetConnection();
-        using var cmd = new SqlCommand(sql, con);
-        cmd.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = id });
         await con.OpenAsync();
-        return await cmd.ExecuteNonQueryAsync() > 0;
+
+        using (var checkCmd = new SqlCommand(checkSql, con))
+        {
+            checkCmd.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = id });
+            var hasRelations = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) == 1;
+
+            if (hasRelations)
+                throw new InvalidOperationException("No se puede eliminar un cliente que tiene prendas o muestras asociadas.");
+        }
+
+        using (var deleteCmd = new SqlCommand(deleteSql, con))
+        {
+            deleteCmd.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = id });
+            return await deleteCmd.ExecuteNonQueryAsync() > 0;
+        }
     }
 
     public async Task<bool> ExistsByNombreAsync(string username, int? excludeId = null)

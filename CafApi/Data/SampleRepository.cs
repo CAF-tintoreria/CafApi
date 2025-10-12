@@ -19,16 +19,21 @@ namespace CafApi.Data
         public async Task<int> CreateAsync(CreateSampleDTO sample)
         {
             const string query = @"
-    INSERT INTO dbo.Muestra (TipoPrenda, PesoKilos, ClienteID, EstadoMuestraID, FechaCambio)
-    OUTPUT INSERTED.MuestraID
-    VALUES (@TipoPrenda, @PesoKilos, @ClienteID, @EstadoMuestraID, @FechaCambio)";
+        INSERT INTO dbo.Muestra (TipoPrenda, PesoKilos, ClienteID, EstadoMuestraID, FechaCambio)
+        OUTPUT INSERTED.MuestraID
+        VALUES (@TipoPrenda, @PesoKilos, @ClienteID, @EstadoMuestraID, @FechaCambio)";
 
             try
             {
                 using var connection = _db.GetConnection();
-                using var command = new SqlCommand(query, connection);
                 await connection.OpenAsync();
 
+                // ✅ cliente activo
+                if (!await IsClientActiveAsync(connection, null, sample.ClientID))
+                    throw new InvalidOperationException("El cliente seleccionado está inactivo. No se puede asignar una muestra.");
+
+                using var command = new SqlCommand(query, connection);
+                // ... parámetros como ya estaban
                 command.Parameters.AddWithValue("@TipoPrenda", sample.ClotheType);
                 command.Parameters.AddWithValue("@PesoKilos", sample.KilogramWeight);
                 command.Parameters.AddWithValue("@ClienteID", sample.ClientID);
@@ -37,11 +42,9 @@ namespace CafApi.Data
 
                 return (int)await command.ExecuteScalarAsync();
             }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error de base de datos al obtener Muestra", ex);
-            }
+            catch { throw; }
         }
+
 
         public Task<int> DeleteAsync(int id)
         {
@@ -53,6 +56,7 @@ namespace CafApi.Data
             const string query = @"
                 SELECT 
         m.TipoPrenda,
+        m.MuestraID,
         m.PesoKilos,
         c.ClienteID,
         c.Contacto,
@@ -94,6 +98,7 @@ namespace CafApi.Data
                     }
                     samples.Add(new SampleDetailDTO
                     {
+                        MuestraID = reader.GetInt32(reader.GetOrdinal("MuestraID")),
                         ClotheType = reader.GetString(reader.GetOrdinal("TipoPrenda")),
                         KilogramWeight = reader.GetDecimal(reader.GetOrdinal("PesoKilos")),
                         Client = new()
@@ -200,17 +205,21 @@ namespace CafApi.Data
                 using var connection = _db.GetConnection();
                 await connection.OpenAsync();
 
+                // ✅ cliente activo
+                if (!await IsClientActiveAsync(connection, null, sample.ClientID))
+                    throw new InvalidOperationException("El cliente seleccionado está inactivo. No se puede asignar una muestra.");
+
                 const string query = @"
-                    UPDATE [dbo].[Muestra]
-                       SET TipoPrenda = @ClotheType
-                          ,[PesoKilos] = @KilogramWeight
-                          ,[ClienteID] = @ClientID
-                          ,[EstadoMuestraID] = @SampleStatusID
-                          ,[FechaCambio] = @ModifiedAt
-                      WHERE MuestraID = @Id;";
+            UPDATE [dbo].[Muestra]
+               SET TipoPrenda = @ClotheType,
+                   [PesoKilos] = @KilogramWeight,
+                   [ClienteID] = @ClientID,
+                   [EstadoMuestraID] = @SampleStatusID,
+                   [FechaCambio] = @ModifiedAt
+             WHERE MuestraID = @Id;";
 
                 using var command = new SqlCommand(query, connection);
-
+                // ... parámetros como ya estaban
                 command.Parameters.AddWithValue("@ClotheType", sample.ClotheType);
                 command.Parameters.AddWithValue("@KilogramWeight", sample.KilogramWeight);
                 command.Parameters.AddWithValue("@ClientID", sample.ClientID);
@@ -220,12 +229,17 @@ namespace CafApi.Data
 
                 var rows = await command.ExecuteNonQueryAsync();
                 return rows > 0 ? id : -1;
-
             }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error de base de datos al actualizar Muestra", ex);
-            }
+            catch { throw; }
+        }
+        private static async Task<bool> IsClientActiveAsync(SqlConnection con, SqlTransaction? tx, int clientId)
+        {
+            const string sql = "SELECT Estado FROM dbo.Cliente WHERE ClienteID = @id;";
+            using var cmd = new SqlCommand(sql, con, tx);
+            cmd.Parameters.AddWithValue("@id", clientId);
+            var val = await cmd.ExecuteScalarAsync();
+            if (val is null) throw new InvalidOperationException($"Cliente no encontrado: {clientId}");
+            return Convert.ToBoolean(val);
         }
     }
-}
+    }

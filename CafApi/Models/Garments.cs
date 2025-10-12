@@ -46,6 +46,8 @@ namespace CafApi.Models
         public Client? Cliente { get; set; }
 
         public SampleDetailDTO? Muestra { get; set; }
+
+        public List<Process>? Processes { get; set; }
     }
 
     public class PrendaCreateDto

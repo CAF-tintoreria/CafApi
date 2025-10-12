@@ -62,7 +62,6 @@ public class PrendaController : ControllerBase
     {
         if (dto.FechaIngreso == default)
             ModelState.AddModelError(nameof(dto.FechaIngreso), "FechaIngreso debe ser una fecha válida.");
-
         if (!ModelState.IsValid)
             return ValidationProblem(ModelState);
 
@@ -70,6 +69,11 @@ public class PrendaController : ControllerBase
         {
             var id = await _repo.CreateAsync(dto);
             return Ok(new { ok = true, id, message = "Prenda creada correctamente." });
+        }
+        catch (InvalidOperationException vex)
+        {
+
+            return BadRequest(new { ok = false, message = vex.Message });
         }
         catch (Exception ex)
         {
@@ -81,10 +85,8 @@ public class PrendaController : ControllerBase
     public async Task<IActionResult> Update(int id, [FromBody] PrendaUpdateDto dto)
     {
         if (id <= 0) return BadRequest("Id inválido.");
-
         if (dto.FechaIngreso == default)
             ModelState.AddModelError(nameof(dto.FechaIngreso), "FechaIngreso debe ser una fecha válida.");
-
         if (!ModelState.IsValid)
             return ValidationProblem(ModelState);
 
@@ -93,8 +95,11 @@ public class PrendaController : ControllerBase
             var affected = await _repo.UpdateAsync(id, dto);
             if (affected == 0)
                 return NotFound(new { ok = false, message = "Prenda no encontrada." });
-
             return Ok(new { ok = true, message = "Prenda actualizada correctamente." });
+        }
+        catch (InvalidOperationException vex)
+        {
+            return BadRequest(new { ok = false, message = vex.Message });
         }
         catch (Exception ex)
         {

@@ -52,10 +52,12 @@ namespace CafApi.Controllers
             try
             {
                 var data = await _sampleRepository.CreateAsync(sample);
-
                 if (data < 1) return BadRequest("No se pudo crear el registro");
-                return Ok(new { ok = true, message = "Prenda creada correctamente." });
-
+                return Ok(new { ok = true, message = "Muestra creada correctamente." });
+            }
+            catch (InvalidOperationException vex)
+            {
+                return BadRequest(new { ok = false, message = vex.Message });
             }
             catch (Exception ex)
             {
@@ -77,7 +79,10 @@ namespace CafApi.Controllers
                 if (updatedId < 1) return BadRequest("No se pudo actualizar el registro");
 
                 return Ok(new { ok = true, message = "Muestra actualizada correctamente." });
-
+            }
+            catch (InvalidOperationException vex)
+            {
+                return BadRequest(new { ok = false, message = vex.Message });
             }
             catch (Exception ex)
             {
