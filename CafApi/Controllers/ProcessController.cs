@@ -24,32 +24,32 @@ public class ProcessController : ControllerBase
         _tokenSvc = tokenSvc;
     }
 
-    //GET
     [HttpGet]
     public async Task<ActionResult> Get([FromQuery] string? name)
     {
         try
         {
             var data = await _repo.GetAllAsync();
-            List<ProcessDTO> processList = data.Select(item => new ProcessDTO
-            { 
-                TypeProcess = item.TypeProcess.ToString(),
+            var processList = data.Select(item => new ProcessDTO
+            {
+                TypeProcess = item.TypeProcess,
                 Observations = item.Observations,
                 ProcessID = item.ProcessID,
             }).ToList();
 
-            if (!string.IsNullOrWhiteSpace(name) && Enum.TryParse(typeof(ETypeProcess), name, out _))
-                processList.Where(p => p.TypeProcess.Contains(name, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (!string.IsNullOrWhiteSpace(name))
+                processList = processList
+                    .Where(p => p.TypeProcess.Contains(name, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
 
-            return Ok(new { ok = true, processList });
+            return Ok(new { ok = true, data = processList });
         }
-        catch (Exception)
+        catch
         {
             return Problem500Dev("No se pudo obtener el listado de procesos.");
         }
     }
 
-    //GET
     [HttpGet("{id:int}")]
     public async Task<ActionResult> GetById(int id)
     {
@@ -58,31 +58,32 @@ public class ProcessController : ControllerBase
             var proc = await _repo.GetByIdAsync(id);
             if (proc is null) return NotFound(new { ok = false, message = "Proceso no encontrado." });
 
-            ProcessDTO parsedProcess = new()
+            var parsedProcess = new ProcessDTO
             {
-                TypeProcess = proc.TypeProcess.ToString(),
+                TypeProcess = proc.TypeProcess,
                 Observations = proc.Observations,
                 ProcessID = proc.ProcessID,
             };
 
             return Ok(new { ok = true, data = parsedProcess });
         }
-        catch (Exception)
+        catch
         {
             return Problem500Dev("No se pudo obtener el proceso.");
         }
     }
 
-    
-
-    //POST
     [HttpPost]
     public async Task<ActionResult> Create([FromBody] ProcessCreateDto dto)
     {
-        if (string.IsNullOrWhiteSpace(dto.TypeProcess) || !Enum.TryParse<ETypeProcess>(dto.TypeProcess, out var eTypeProcess))
+        if (string.IsNullOrWhiteSpace(dto.TypeProcess))
             return BadRequest(new { ok = false, message = "TypeProcess es requerido." });
-        if (dto.TypeProcess.Length > 80)
-            return BadRequest(new { ok = false, message = "TypeProcess no puede superar 80 caracteres." });
+
+        if (dto.TypeProcess.Length > 50)
+            return BadRequest(new { ok = false, message = "TypeProcess no puede superar 50 caracteres." });
+
+        if (dto.Observations?.Length > 250)
+            return BadRequest(new { ok = false, message = "Observations no puede superar 250 caracteres." });
 
         try
         {
@@ -91,7 +92,7 @@ public class ProcessController : ControllerBase
 
             var entity = new Process
             {
-                TypeProcess = eTypeProcess,
+                TypeProcess = dto.TypeProcess,
                 Observations = dto.Observations
             };
 
@@ -99,25 +100,38 @@ public class ProcessController : ControllerBase
             return CreatedAtAction(nameof(GetById), new { id = newId },
                 new { ok = true, message = "Proceso creado correctamente." });
         }
-        catch (SqlException)
+        catch (SqlException ex)
         {
-            return Problem500Dev("Error de base de datos al crear el proceso.");
+#if DEBUG
+            return StatusCode(500, new { ok = false, message = "DB error al crear el proceso.", detail = ex.Message });
+#else
+    return Problem500Dev("Error de base de datos al crear el proceso.");
+#endif
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            return Problem500Dev("No se pudo crear el proceso.");
+#if DEBUG
+            return StatusCode(500, new { ok = false, message = "No se pudo crear el proceso.", detail = ex.InnerException?.Message ?? ex.Message });
+#else
+        return Problem500Dev("No se pudo crear el proceso.");
+#endif
         }
     }
 
-    //PUT
+
+
+
     [HttpPut("{id:int}")]
     public async Task<ActionResult> Update(int id, [FromBody] ProcessUpdateDto dto)
     {
-        if (string.IsNullOrWhiteSpace(dto.TypeProcess) || !Enum.TryParse<ETypeProcess>(dto.TypeProcess, out var eTypeProcess))
+        if (string.IsNullOrWhiteSpace(dto.TypeProcess))
             return BadRequest(new { ok = false, message = "TypeProcess es requerido." });
 
-        if (dto.TypeProcess.Length > 80)
-            return BadRequest(new { ok = false, message = "TypeProcess no puede superar 80 caracteres." });
+        if (dto.TypeProcess.Length > 50)
+            return BadRequest(new { ok = false, message = "TypeProcess no puede superar 50 caracteres." });
+
+        if (dto.Observations?.Length > 250)
+            return BadRequest(new { ok = false, message = "Observations no puede superar 250 caracteres." });
 
         try
         {
@@ -131,7 +145,7 @@ public class ProcessController : ControllerBase
             var entity = new Process
             {
                 ProcessID = id,
-                TypeProcess = eTypeProcess,
+                TypeProcess = dto.TypeProcess,
                 Observations = dto.Observations
             };
 
@@ -149,29 +163,80 @@ public class ProcessController : ControllerBase
             return Problem500Dev("No se pudo actualizar el proceso.");
         }
     }
-
-    //DELETE
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> Delete(int id)
     {
         try
         {
-            if (await _repo.GetByIdAsync(id) is null)
+            var existing = await _repo.GetByIdAsync(id);
+            if (existing is null)
                 return NotFound(new { ok = false, message = "Proceso no encontrado." });
+
+            var refs = await _repo.GetReferenceCountsAsync(id);
+            if (refs.muestras > 0 || refs.prendas > 0)
+            {
+                return Conflict(new
+                {
+                    ok = false,
+                    code = "PROCESS_HAS_RELATIONS",
+                    message = $"No se puede eliminar: el proceso está asociado a {refs.muestras} muestras y {refs.prendas} prendas."
+                });
+            }
 
             var ok = await _repo.DeleteAsync(id);
             return ok
                 ? Ok(new { ok = true, message = "Proceso eliminado correctamente." })
                 : StatusCode(500, new { ok = false, message = "No se pudo eliminar." });
         }
-        catch (SqlException)
+        // Por si alguien dispara el delete sin el pre-chequeo o aparece otra FK relacionada
+        catch (SqlException ex) when (ex.Number == 547) // FK violation
         {
-            return Problem500Dev("Error de base de datos al eliminar el proceso.");
+            return Conflict(new
+            {
+                ok = false,
+                code = "FK_CONSTRAINT",
+                message = "No se puede eliminar porque el proceso está asociado a otros registros (muestras y/o prendas)."
+#if DEBUG
+                ,
+                detail = ex.Message
+#endif
+            });
         }
-        catch (Exception)
+        catch
         {
             return Problem500Dev("No se pudo eliminar el proceso.");
         }
+    }
+
+    [HttpDelete("{id:int}/procesos/{procesoId:int}")]
+    public async Task<IActionResult> RemoveProceso(int id, int procesoId)
+    {
+        try
+        {
+            var ok = await _repo.RemoveProcesoFromPrendaAsync(id, procesoId);
+            return ok ? Ok(new { ok = true, message = "Relación eliminada." })
+                      : NotFound(new { ok = false, message = "Relación no encontrada o prenda inexistente." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { ok = false, message = ex.Message });
+        }
+
+    }
+
+    [HttpGet("options")]
+    public async Task<IActionResult> GetOptions()
+    {
+        var data = (await _repo.GetAllAsync())
+            .Select(p => new
+            {
+                procesoID = p.ProcessID,
+                nombre = p.TypeProcess  // string
+            })
+            .OrderBy(p => p.nombre)
+            .ToList();
+
+        return Ok(new { ok = true, data });
     }
 
     private ObjectResult Problem500Dev(string userMessage)
@@ -182,4 +247,6 @@ public class ProcessController : ControllerBase
         return StatusCode(500, new { ok = false, message = userMessage });
 #endif
     }
+
+
 }

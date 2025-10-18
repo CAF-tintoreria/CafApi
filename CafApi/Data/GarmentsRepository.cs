@@ -18,36 +18,62 @@ public class PrendaRepository
     {
         var list = new List<Prenda>();
         const string sql = @"
-            SELECT PrendaID, TipoPrenda, NroCorte, CantidadUnidades,
-                   PesoKilos, CantidadBolsas, FechaIngreso, Remito,
-                   EstadoPrendaID, ProcesoID, ClienteID, MuestraID, FechaCambio,
-                   Observaciones
-            FROM dbo.Prenda";
+        SELECT PrendaID, TipoPrenda, NroCorte, CantidadUnidades,
+               PesoKilos, CantidadBolsas, FechaIngreso, Remito,
+               EstadoPrendaID, ProcesoID, ClienteID, MuestraID, FechaCambio,
+               Observaciones
+        FROM dbo.Prenda";
 
         using var con = _db.GetConnection();
         using var cmd = new SqlCommand(sql, con);
         await con.OpenAsync();
 
         using var rd = await cmd.ExecuteReaderAsync();
+
+        // ——— resolver ordinals UNA vez ———
+        int oPrendaID = rd.GetOrdinal("PrendaID");
+        int oTipoPrenda = rd.GetOrdinal("TipoPrenda");
+        int oNroCorte = rd.GetOrdinal("NroCorte");
+        int oCantUnidades = rd.GetOrdinal("CantidadUnidades");
+        int oPesoKilos = rd.GetOrdinal("PesoKilos");
+        int oCantBolsas = rd.GetOrdinal("CantidadBolsas");
+        int oFechaIngreso = rd.GetOrdinal("FechaIngreso");
+        int oRemito = rd.GetOrdinal("Remito");
+        int oEstadoPrendaID = rd.GetOrdinal("EstadoPrendaID");
+        int oProcesoID = rd.GetOrdinal("ProcesoID");
+        int oClienteID = rd.GetOrdinal("ClienteID");
+        int oMuestraID = rd.GetOrdinal("MuestraID");
+        int oFechaCambio = rd.GetOrdinal("FechaCambio");
+        int oObservaciones = rd.GetOrdinal("Observaciones");
+
         while (await rd.ReadAsync())
         {
-            list.Add(new Prenda
+            var item = new Prenda
             {
-                PrendaID = rd.GetInt32("PrendaID"),
-                TipoPrenda = rd.IsDBNull("TipoPrenda") ? null : rd.GetString("TipoPrenda"),
-                NroCorte = rd.IsDBNull("NroCorte") ? (int?)null : rd.GetInt32("NroCorte"),
-                CantidadUnidades = rd.IsDBNull("CantidadUnidades") ? (int?)null : rd.GetInt32("CantidadUnidades"),
-                PesoKilos = rd.IsDBNull("PesoKilos") ? (decimal?)null : rd.GetDecimal("PesoKilos"),
-                CantidadBolsas = rd.IsDBNull("CantidadBolsas") ? (int?)null : rd.GetInt32("CantidadBolsas"),
-                FechaIngreso = rd.GetDateTime("FechaIngreso"),
-                Remito = rd.IsDBNull("Remito") ? null : rd.GetString("Remito"),
-                EstadoPrendaID = rd.GetInt32("EstadoPrendaID"),
-                ProcesoID = rd.GetInt32("ProcesoID"),
-                ClienteID = rd.GetInt32("ClienteID"),
-                MuestraID = rd.IsDBNull("MuestraID") ? (int?)null : rd.GetInt32("MuestraID"),
-                FechaCambio = rd.IsDBNull("FechaCambio") ? (DateTime?)null : rd.GetDateTime("FechaCambio"),
-                Observaciones = rd.IsDBNull("Observaciones") ? null : rd.GetString("Observaciones")
-            });
+                PrendaID = rd.GetInt32(oPrendaID),
+                TipoPrenda = rd.IsDBNull(oTipoPrenda) ? null : rd.GetString(oTipoPrenda),
+                NroCorte = rd.IsDBNull(oNroCorte) ? (int?)null : rd.GetInt32(oNroCorte),
+                CantidadUnidades = rd.IsDBNull(oCantUnidades) ? (int?)null : rd.GetInt32(oCantUnidades),
+                PesoKilos = rd.IsDBNull(oPesoKilos) ? (decimal?)null : rd.GetDecimal(oPesoKilos),
+                CantidadBolsas = rd.IsDBNull(oCantBolsas) ? (int?)null : rd.GetInt32(oCantBolsas),
+
+                // estos deberían venir NOT NULL según tu esquema
+                FechaIngreso = rd.GetDateTime(oFechaIngreso),
+                EstadoPrendaID = rd.GetInt32(oEstadoPrendaID),
+
+                // si por algún motivo viniera NULL en datos antiguos,
+                // evitamos romper la serialización devolviendo 0
+                ProcesoID = rd.IsDBNull(oProcesoID) ? 0 : rd.GetInt32(oProcesoID),
+                ClienteID = rd.IsDBNull(oClienteID) ? 0 : rd.GetInt32(oClienteID),
+
+                // opcionales
+                MuestraID = rd.IsDBNull(oMuestraID) ? (int?)null : rd.GetInt32(oMuestraID),
+                FechaCambio = rd.IsDBNull(oFechaCambio) ? (DateTime?)null : rd.GetDateTime(oFechaCambio),
+                Remito = rd.IsDBNull(oRemito) ? null : rd.GetString(oRemito),
+                Observaciones = rd.IsDBNull(oObservaciones) ? null : rd.GetString(oObservaciones)
+            };
+
+            list.Add(item);
         }
 
         return list;
@@ -113,39 +139,65 @@ public class PrendaRepository
 
     public async Task<int> CreateAsync(PrendaCreateDto dto)
     {
-        const string sql = @"
-        INSERT INTO dbo.Prenda
-        (TipoPrenda, NroCorte, CantidadUnidades, PesoKilos, CantidadBolsas,
-         FechaIngreso, Remito, EstadoPrendaID, ProcesoID, ClienteID, MuestraID, Observaciones, FechaCambio)
-        OUTPUT INSERTED.PrendaID
-        VALUES
-        (@TipoPrenda, @NroCorte, @CantidadUnidades, @PesoKilos, @CantidadBolsas,
-         @FechaIngreso, @Remito, @EstadoPrendaID, @ProcesoID, @ClienteID, @MuestraID, @Observaciones, NULL)";
+        const string insertPrenda = @"
+    INSERT INTO dbo.Prenda
+      (TipoPrenda, NroCorte, CantidadUnidades, PesoKilos, CantidadBolsas,
+       FechaIngreso, Remito, EstadoPrendaID, ProcesoID, ClienteID, MuestraID, Observaciones, FechaCambio)
+    OUTPUT INSERTED.PrendaID
+    VALUES
+      (@TipoPrenda, @NroCorte, @CantidadUnidades, @PesoKilos, @CantidadBolsas,
+       @FechaIngreso, @Remito, @EstadoPrendaID, @ProcesoID, @ClienteID, @MuestraID, @Observaciones, NULL);";
+
+        const string insertPP = @"
+    INSERT INTO dbo.PrendaProceso (PrendaID, ProcesoID)
+    VALUES (@PrendaID, @ProcesoID);";
 
         using var con = _db.GetConnection();
         await con.OpenAsync();
+        using var tx = con.BeginTransaction();
 
-        // ✅ Validaciones de negocio
-        if (!await IsClientActiveAsync(con, null, dto.ClienteID))
-            throw new InvalidOperationException("El cliente seleccionado está inactivo. No se puede asignar una prenda.");
+        try
+        {
+            if (!await IsClientActiveAsync(con, tx, dto.ClienteID))
+                throw new InvalidOperationException("El cliente seleccionado está inactivo. No se puede asignar una prenda.");
 
-        using var cmd = new SqlCommand(sql, con);
-        // ... (parámetros como ya los tenías)
-        cmd.Parameters.Add(new SqlParameter("@TipoPrenda", SqlDbType.NVarChar, 20) { Value = (object?)dto.TipoPrenda ?? DBNull.Value });
-        cmd.Parameters.Add(new SqlParameter("@NroCorte", SqlDbType.Int) { Value = (object?)dto.NroCorte ?? DBNull.Value });
-        cmd.Parameters.Add(new SqlParameter("@CantidadUnidades", SqlDbType.Int) { Value = (object?)dto.CantidadUnidades ?? DBNull.Value });
-        cmd.Parameters.Add(new SqlParameter("@PesoKilos", SqlDbType.Decimal) { Value = (object?)dto.PesoKilos ?? DBNull.Value });
-        cmd.Parameters.Add(new SqlParameter("@CantidadBolsas", SqlDbType.Int) { Value = (object?)dto.CantidadBolsas ?? DBNull.Value });
-        cmd.Parameters.Add(new SqlParameter("@FechaIngreso", SqlDbType.DateTime) { Value = dto.FechaIngreso });
-        cmd.Parameters.Add(new SqlParameter("@Remito", SqlDbType.NVarChar, 20) { Value = (object?)dto.Remito ?? DBNull.Value });
-        cmd.Parameters.Add(new SqlParameter("@EstadoPrendaID", SqlDbType.Int) { Value = dto.EstadoPrendaID });
-        cmd.Parameters.Add(new SqlParameter("@ProcesoID", SqlDbType.Int) { Value = dto.ProcesoID });
-        cmd.Parameters.Add(new SqlParameter("@ClienteID", SqlDbType.Int) { Value = dto.ClienteID });
-        cmd.Parameters.Add(new SqlParameter("@MuestraID", SqlDbType.Int) { Value = (object?)dto.MuestraID ?? DBNull.Value });
-        cmd.Parameters.Add(new SqlParameter("@Observaciones", SqlDbType.NVarChar, 200) { Value = (object?)dto.Observaciones ?? DBNull.Value });
+            int prendaId;
+            using (var cmd = new SqlCommand(insertPrenda, con, tx))
+            {
+                cmd.Parameters.Add(new SqlParameter("@TipoPrenda", SqlDbType.NVarChar, 20) { Value = (object?)dto.TipoPrenda ?? DBNull.Value });
+                cmd.Parameters.Add(new SqlParameter("@NroCorte", SqlDbType.Int) { Value = (object?)dto.NroCorte ?? DBNull.Value });
+                cmd.Parameters.Add(new SqlParameter("@CantidadUnidades", SqlDbType.Int) { Value = (object?)dto.CantidadUnidades ?? DBNull.Value });
+                cmd.Parameters.Add(new SqlParameter("@PesoKilos", SqlDbType.Decimal) { Value = (object?)dto.PesoKilos ?? DBNull.Value });
+                cmd.Parameters.Add(new SqlParameter("@CantidadBolsas", SqlDbType.Int) { Value = (object?)dto.CantidadBolsas ?? DBNull.Value });
+                cmd.Parameters.Add(new SqlParameter("@FechaIngreso", SqlDbType.DateTime) { Value = dto.FechaIngreso });
+                cmd.Parameters.Add(new SqlParameter("@Remito", SqlDbType.NVarChar, 20) { Value = (object?)dto.Remito ?? DBNull.Value });
+                cmd.Parameters.Add(new SqlParameter("@EstadoPrendaID", SqlDbType.Int) { Value = dto.EstadoPrendaID });
+                cmd.Parameters.Add(new SqlParameter("@ProcesoID", SqlDbType.Int) { Value = dto.ProcesoID });
+                cmd.Parameters.Add(new SqlParameter("@ClienteID", SqlDbType.Int) { Value = dto.ClienteID });
+                cmd.Parameters.Add(new SqlParameter("@MuestraID", SqlDbType.Int) { Value = (object?)dto.MuestraID ?? DBNull.Value });
+                cmd.Parameters.Add(new SqlParameter("@Observaciones", SqlDbType.NVarChar, 200) { Value = (object?)dto.Observaciones ?? DBNull.Value });
 
-        return Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                prendaId = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+            }
+
+            // Agregar relación inicial en PrendaProceso
+            using (var cmd = new SqlCommand(insertPP, con, tx))
+            {
+                cmd.Parameters.Add(new SqlParameter("@PrendaID", SqlDbType.Int) { Value = prendaId });
+                cmd.Parameters.Add(new SqlParameter("@ProcesoID", SqlDbType.Int) { Value = dto.ProcesoID });
+                await cmd.ExecuteNonQueryAsync();
+            }
+
+            await tx.CommitAsync();
+            return prendaId;
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
     }
+
 
     public async Task<int> UpdateAsync(int id, PrendaUpdateDto dto)
     {
@@ -226,15 +278,62 @@ public class PrendaRepository
 
     public async Task<bool> DeleteAsync(int id)
     {
-        const string sql = @"DELETE FROM dbo.Prenda WHERE PrendaID=@id";
-
         using var con = _db.GetConnection();
-        using var cmd = new SqlCommand(sql, con);
-        cmd.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = id });
-
         await con.OpenAsync();
-        return await cmd.ExecuteNonQueryAsync() > 0;
+
+        using var tx = con.BeginTransaction();
+
+        try
+        {
+            // 1) Verificar estado = "Terminado"
+            const string checkEstadoSql = @"
+SELECT TOP 1 e.EstadoActual
+FROM dbo.Prenda p
+JOIN dbo.EstadoPrendas e ON e.EstadoPrendaID = p.EstadoPrendaID
+WHERE p.PrendaID = @id;";
+
+            string? estadoActual;
+            using (var chk = new SqlCommand(checkEstadoSql, con, tx))
+            {
+                chk.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = id });
+                var obj = await chk.ExecuteScalarAsync();
+                if (obj is null)
+                {
+                    // no existe la prenda
+                    await tx.RollbackAsync();
+                    return false;
+                }
+                estadoActual = Convert.ToString(obj);
+            }
+
+            if (!string.Equals(estadoActual?.Trim(), "Terminado", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Solo se puede eliminar una prenda cuyo estado es 'Terminado'.");
+
+            // 2) Borrar relaciones en PrendaProceso
+            using (var delRel = new SqlCommand("DELETE FROM dbo.PrendaProceso WHERE PrendaID = @id;", con, tx))
+            {
+                delRel.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = id });
+                await delRel.ExecuteNonQueryAsync();
+            }
+
+            // 3) Borrar la prenda
+            int rows;
+            using (var delPrenda = new SqlCommand("DELETE FROM dbo.Prenda WHERE PrendaID = @id;", con, tx))
+            {
+                delPrenda.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = id });
+                rows = await delPrenda.ExecuteNonQueryAsync();
+            }
+
+            await tx.CommitAsync();
+            return rows > 0;
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
     }
+
 
     public async Task<IEnumerable<Prenda>> GetAllWithClientAsync()
     {
@@ -264,52 +363,86 @@ ORDER BY p.PrendaID, pp.PrendaProcesoID;";
         await con.OpenAsync();
         using var rd = await cmd.ExecuteReaderAsync();
 
+        // Ordinals una sola vez
+        int oPrendaID = rd.GetOrdinal("PrendaID");
+        int oTipoPrenda = rd.GetOrdinal("TipoPrenda");
+        int oNroCorte = rd.GetOrdinal("NroCorte");
+        int oCantUnidades = rd.GetOrdinal("CantidadUnidades");
+        int oPesoKilos = rd.GetOrdinal("PesoKilos");
+        int oCantBolsas = rd.GetOrdinal("CantidadBolsas");
+        int oFechaIngreso = rd.GetOrdinal("FechaIngreso");
+        int oRemito = rd.GetOrdinal("Remito");
+        int oEstadoPrendaID = rd.GetOrdinal("EstadoPrendaID");
+        int oProcesoID = rd.GetOrdinal("ProcesoID");
+        int oMuestraID = rd.GetOrdinal("MuestraID");
+        int oFechaCambio = rd.GetOrdinal("FechaCambio");
+        int oObservaciones = rd.GetOrdinal("Observaciones");
+
+        int oC_ClienteID = rd.GetOrdinal("C_ClienteID");
+        int oC_Nombre = rd.GetOrdinal("C_Nombre");
+        int oC_Contacto = rd.GetOrdinal("C_Contacto");
+        int oC_Estado = rd.GetOrdinal("C_Estado");
+
+        int oM_MuestraID = rd.GetOrdinal("M_MuestraID");
+        int oM_TipoPrenda = rd.GetOrdinal("M_TipoPrenda");
+        int oM_PesoKilos = rd.GetOrdinal("M_PesoKilos");
+        int oM_FechaCambio = rd.GetOrdinal("M_FechaCambio");
+        int oM_EstadoMuestraID = rd.GetOrdinal("M_EstadoMuestraID");
+        // int oM_EstadoNombre = rd.GetOrdinal("M_EstadoNombre"); // no lo usamos ahora
+
+        int oPR_ProcesoID = rd.GetOrdinal("PR_ProcesoID");
+        int oPR_TipoProceso = rd.GetOrdinal("PR_TipoProceso");
+        int oPR_Observaciones = rd.GetOrdinal("PR_Observaciones");
+
         while (await rd.ReadAsync())
         {
-            var id = rd.GetInt32(rd.GetOrdinal("PrendaID"));
+            var id = rd.GetInt32(oPrendaID);
+
             if (!byId.TryGetValue(id, out var dto))
             {
                 dto = new Prenda
                 {
                     PrendaID = id,
-                    TipoPrenda = rd.IsDBNull("TipoPrenda") ? null : rd.GetString("TipoPrenda"),
-                    NroCorte = rd.IsDBNull("NroCorte") ? (int?)null : rd.GetInt32("NroCorte"),
-                    CantidadUnidades = rd.IsDBNull("CantidadUnidades") ? (int?)null : rd.GetInt32("CantidadUnidades"),
-                    PesoKilos = rd.IsDBNull("PesoKilos") ? (decimal?)null : rd.GetDecimal("PesoKilos"),
-                    CantidadBolsas = rd.IsDBNull("CantidadBolsas") ? (int?)null : rd.GetInt32("CantidadBolsas"),
-                    FechaIngreso = rd.GetDateTime("FechaIngreso"),
-                    Remito = rd.IsDBNull("Remito") ? null : rd.GetString("Remito"),
-                    EstadoPrendaID = rd.GetInt32("EstadoPrendaID"),
-                    ProcesoID = rd.GetInt32("ProcesoID"),
-                    ClienteID = rd.IsDBNull("C_ClienteID") ? 0 : rd.GetInt32("C_ClienteID"),
-                    MuestraID = rd.IsDBNull("MuestraID") ? (int?)null : rd.GetInt32("MuestraID"),
-                    FechaCambio = rd.IsDBNull("FechaCambio") ? (DateTime?)null : rd.GetDateTime("FechaCambio"),
-                    Observaciones = rd.IsDBNull("Observaciones") ? null : rd.GetString("Observaciones"),
+                    TipoPrenda = rd.IsDBNull(oTipoPrenda) ? null : rd.GetString(oTipoPrenda),
+                    NroCorte = rd.IsDBNull(oNroCorte) ? (int?)null : rd.GetInt32(oNroCorte),
+                    CantidadUnidades = rd.IsDBNull(oCantUnidades) ? (int?)null : rd.GetInt32(oCantUnidades),
+                    PesoKilos = rd.IsDBNull(oPesoKilos) ? (decimal?)null : rd.GetDecimal(oPesoKilos),
+                    CantidadBolsas = rd.IsDBNull(oCantBolsas) ? (int?)null : rd.GetInt32(oCantBolsas),
+                    FechaIngreso = rd.GetDateTime(oFechaIngreso),
+                    Remito = rd.IsDBNull(oRemito) ? null : rd.GetString(oRemito),
+                    EstadoPrendaID = rd.GetInt32(oEstadoPrendaID),
+                    ProcesoID = rd.GetInt32(oProcesoID),
+                    ClienteID = rd.IsDBNull(oC_ClienteID) ? 0 : rd.GetInt32(oC_ClienteID),
+                    MuestraID = rd.IsDBNull(oMuestraID) ? (int?)null : rd.GetInt32(oMuestraID),
+                    FechaCambio = rd.IsDBNull(oFechaCambio) ? (DateTime?)null : rd.GetDateTime(oFechaCambio),
+                    Observaciones = rd.IsDBNull(oObservaciones) ? null : rd.GetString(oObservaciones),
                     Processes = new List<Process>()
                 };
 
-                if (!rd.IsDBNull("C_ClienteID"))
+                // Cliente (si existe)
+                if (!rd.IsDBNull(oC_ClienteID))
                 {
                     dto.Cliente = new Client
                     {
-                        ClientID = rd.GetInt32("C_ClienteID"),
-                        Username = rd.GetString("C_Nombre"),
-                        Contact = rd.IsDBNull("C_Contacto") ? null : rd.GetString("C_Contacto"),
-                        State = rd.GetBoolean("C_Estado")
+                        ClientID = rd.GetInt32(oC_ClienteID),
+                        Username = rd.GetString(oC_Nombre),
+                        Contact = rd.IsDBNull(oC_Contacto) ? null : rd.GetString(oC_Contacto),
+                        State = rd.GetBoolean(oC_Estado)
                     };
                 }
 
-                if (!rd.IsDBNull("M_MuestraID"))
+                // Muestra (si existe)
+                if (!rd.IsDBNull(oM_MuestraID))
                 {
                     dto.Muestra = new SampleDetailDTO
                     {
-                        MuestraID = rd.GetInt32(rd.GetOrdinal("MuestraID")),
-                        ClotheType = rd.IsDBNull("M_TipoPrenda") ? null : rd.GetString("M_TipoPrenda"),
-                        KilogramWeight = rd.IsDBNull("M_PesoKilos") ? 0 : rd.GetDecimal("M_PesoKilos"),
-                        ModifiedAt = rd.IsDBNull("M_FechaCambio") ? (DateTime?)null : rd.GetDateTime("M_FechaCambio"),
-                        Status = new SampleStatus
+                        MuestraID = rd.GetInt32(oM_MuestraID),
+                        ClotheType = rd.IsDBNull(oM_TipoPrenda) ? null : rd.GetString(oM_TipoPrenda),
+                        KilogramWeight = rd.IsDBNull(oM_PesoKilos) ? 0 : rd.GetDecimal(oM_PesoKilos),
+                        ModifiedAt = rd.IsDBNull(oM_FechaCambio) ? (DateTime?)null : rd.GetDateTime(oM_FechaCambio),
+                        Status = new Models.SampleState.SampleStatus
                         {
-                            SampleStatusID = rd.IsDBNull("M_EstadoMuestraID") ? 0 : rd.GetInt32("M_EstadoMuestraID")
+                            SampleStatusID = rd.IsDBNull(oM_EstadoMuestraID) ? 0 : rd.GetInt32(oM_EstadoMuestraID)
                         }
                     };
                 }
@@ -317,13 +450,14 @@ ORDER BY p.PrendaID, pp.PrendaProcesoID;";
                 byId.Add(id, dto);
             }
 
-            // Agregar proceso si hay
-            if (!rd.IsDBNull(rd.GetOrdinal("PR_ProcesoID")))
+            // Agregar proceso histórico si hay fila en PrendaProceso
+            if (!rd.IsDBNull(oPR_ProcesoID))
             {
                 dto.Processes!.Add(new Process
                 {
-                    TypeProcess = Enum.Parse<CafApi.Constants.Enum.ETypeProcess>(rd.GetString(rd.GetOrdinal("PR_TipoProceso"))),
-                    Observations = rd.IsDBNull("PR_Observaciones") ? null : rd.GetString("PR_Observaciones")
+                    ProcessID = rd.GetInt32(oPR_ProcesoID),
+                    TypeProcess = rd.IsDBNull(oPR_TipoProceso) ? "" : rd.GetString(oPR_TipoProceso),
+                    Observations = rd.IsDBNull(oPR_Observaciones) ? null : rd.GetString(oPR_Observaciones)
                 });
             }
         }
@@ -353,57 +487,78 @@ WHERE p.PrendaID = @id;";
         using var rd = await cmd.ExecuteReaderAsync();
         if (!await rd.ReadAsync()) return null;
 
+        int oPrendaID = rd.GetOrdinal("PrendaID");
+        int oTipoPrenda = rd.GetOrdinal("TipoPrenda");
+        int oNroCorte = rd.GetOrdinal("NroCorte");
+        int oCantUnidades = rd.GetOrdinal("CantidadUnidades");
+        int oPesoKilos = rd.GetOrdinal("PesoKilos");
+        int oCantBolsas = rd.GetOrdinal("CantidadBolsas");
+        int oFechaIngreso = rd.GetOrdinal("FechaIngreso");
+        int oRemito = rd.GetOrdinal("Remito");
+        int oEstadoPrendaID = rd.GetOrdinal("EstadoPrendaID");
+        int oProcesoID = rd.GetOrdinal("ProcesoID");
+        int oMuestraID = rd.GetOrdinal("MuestraID");
+        int oFechaCambio = rd.GetOrdinal("FechaCambio");
+        int oObservaciones = rd.GetOrdinal("Observaciones");
+
+        int oC_ClienteID = rd.GetOrdinal("C_ClienteID");
+        int oC_Nombre = rd.GetOrdinal("C_Nombre");
+        int oC_Contacto = rd.GetOrdinal("C_Contacto");
+        int oC_Estado = rd.GetOrdinal("C_Estado");
+
+        int oM_MuestraID = rd.GetOrdinal("M_MuestraID");
+        int oM_TipoPrenda = rd.GetOrdinal("M_TipoPrenda");
+        int oM_PesoKilos = rd.GetOrdinal("M_PesoKilos");
+        int oM_FechaCambio = rd.GetOrdinal("M_FechaCambio");
+        int oM_EstadoMuestraID = rd.GetOrdinal("M_EstadoMuestraID");
+
         var dto = new Prenda
         {
-            PrendaID = rd.GetInt32(rd.GetOrdinal("PrendaID")),
-            TipoPrenda = rd.IsDBNull("TipoPrenda") ? null : rd.GetString("TipoPrenda"),
-            NroCorte = rd.IsDBNull("NroCorte") ? (int?)null : rd.GetInt32("NroCorte"),
-            CantidadUnidades = rd.IsDBNull("CantidadUnidades") ? (int?)null : rd.GetInt32("CantidadUnidades"),
-            PesoKilos = rd.IsDBNull("PesoKilos") ? (decimal?)null : rd.GetDecimal("PesoKilos"),
-            CantidadBolsas = rd.IsDBNull("CantidadBolsas") ? (int?)null : rd.GetInt32("CantidadBolsas"),
-            FechaIngreso = rd.GetDateTime(rd.GetOrdinal("FechaIngreso")),
-            Remito = rd.IsDBNull("Remito") ? null : rd.GetString("Remito"),
-            EstadoPrendaID = rd.GetInt32(rd.GetOrdinal("EstadoPrendaID")),
-            ProcesoID = rd.GetInt32(rd.GetOrdinal("ProcesoID")),
-            ClienteID = rd.GetInt32("C_ClienteID"),
-            MuestraID = rd.IsDBNull("MuestraID") ? (int?)null : rd.GetInt32("MuestraID"),
-            FechaCambio = rd.IsDBNull("FechaCambio") ? (DateTime?)null : rd.GetDateTime("FechaCambio"),
-            Observaciones = rd.IsDBNull("Observaciones") ? null : rd.GetString("Observaciones"),
+            PrendaID = rd.GetInt32(oPrendaID),
+            TipoPrenda = rd.IsDBNull(oTipoPrenda) ? null : rd.GetString(oTipoPrenda),
+            NroCorte = rd.IsDBNull(oNroCorte) ? (int?)null : rd.GetInt32(oNroCorte),
+            CantidadUnidades = rd.IsDBNull(oCantUnidades) ? (int?)null : rd.GetInt32(oCantUnidades),
+            PesoKilos = rd.IsDBNull(oPesoKilos) ? (decimal?)null : rd.GetDecimal(oPesoKilos),
+            CantidadBolsas = rd.IsDBNull(oCantBolsas) ? (int?)null : rd.GetInt32(oCantBolsas),
+            FechaIngreso = rd.GetDateTime(oFechaIngreso),
+            Remito = rd.IsDBNull(oRemito) ? null : rd.GetString(oRemito),
+            EstadoPrendaID = rd.GetInt32(oEstadoPrendaID),
+            ProcesoID = rd.GetInt32(oProcesoID),
+            ClienteID = rd.IsDBNull(oC_ClienteID) ? 0 : rd.GetInt32(oC_ClienteID),
+            MuestraID = rd.IsDBNull(oMuestraID) ? (int?)null : rd.GetInt32(oMuestraID),
+            FechaCambio = rd.IsDBNull(oFechaCambio) ? (DateTime?)null : rd.GetDateTime(oFechaCambio),
+            Observaciones = rd.IsDBNull(oObservaciones) ? null : rd.GetString(oObservaciones),
         };
 
-        if (!rd.IsDBNull(rd.GetOrdinal("C_ClienteID")))
+        if (!rd.IsDBNull(oC_ClienteID))
         {
             dto.Cliente = new Client
             {
-                ClientID = rd.GetInt32(rd.GetOrdinal("C_ClienteID")),
-                Username = rd.GetString(rd.GetOrdinal("C_Nombre")),
-                Contact = rd.IsDBNull(rd.GetOrdinal("C_Contacto")) ? null : rd.GetString(rd.GetOrdinal("C_Contacto")),
-                State = rd.GetBoolean(rd.GetOrdinal("C_Estado"))
+                ClientID = rd.GetInt32(oC_ClienteID),
+                Username = rd.GetString(oC_Nombre),
+                Contact = rd.IsDBNull(oC_Contacto) ? null : rd.GetString(oC_Contacto),
+                State = rd.GetBoolean(oC_Estado)
             };
         }
 
-        if (!rd.IsDBNull("M_MuestraID"))
+        if (!rd.IsDBNull(oM_MuestraID))
         {
             dto.Muestra = new SampleDetailDTO
             {
-                MuestraID = rd.GetInt32(rd.GetOrdinal("MuestraID")),
-                ClotheType = rd.IsDBNull("M_TipoPrenda") ? null : rd.GetString("M_TipoPrenda"),
-                KilogramWeight = rd.IsDBNull("M_PesoKilos") ? 0 : rd.GetDecimal("M_PesoKilos"),
-                ModifiedAt = rd.IsDBNull("M_FechaCambio") ? (DateTime?)null : rd.GetDateTime("M_FechaCambio"),
-
-                // Cliente dentro de muestra (si en un futuro lo necesitás, ahora lo omitimos)
-                Client = null,
-
-                // Estado de la muestra con nombre
-                Status = new SampleStatus
+                MuestraID = rd.GetInt32(oM_MuestraID),
+                ClotheType = rd.IsDBNull(oM_TipoPrenda) ? null : rd.GetString(oM_TipoPrenda),
+                KilogramWeight = rd.IsDBNull(oM_PesoKilos) ? 0 : rd.GetDecimal(oM_PesoKilos),
+                ModifiedAt = rd.IsDBNull(oM_FechaCambio) ? (DateTime?)null : rd.GetDateTime(oM_FechaCambio),
+                Status = new Models.SampleState.SampleStatus
                 {
-                    SampleStatusID = rd.IsDBNull("M_EstadoMuestraID") ? 0 : rd.GetInt32("M_EstadoMuestraID"),
+                    SampleStatusID = rd.IsDBNull(oM_EstadoMuestraID) ? 0 : rd.GetInt32(oM_EstadoMuestraID)
                 }
             };
         }
 
         return dto;
     }
+
 
     public async Task<IEnumerable<EstadoPrenda>> GetEstadosPrendaAsync()
     {
@@ -493,7 +648,7 @@ ORDER BY pp.PrendaProcesoID;";
             list.Add(new Process
             {
                 // ajustá los mapeos a tu clase Process / enum
-                TypeProcess = Enum.Parse<CafApi.Constants.Enum.ETypeProcess>(rd.GetString(rd.GetOrdinal("TipoProceso"))),
+                TypeProcess = rd.GetString(rd.GetOrdinal("TipoProceso")),
                 Observations = rd.IsDBNull(rd.GetOrdinal("Observaciones")) ? null : rd.GetString(rd.GetOrdinal("Observaciones"))
             });
         }
@@ -503,34 +658,29 @@ ORDER BY pp.PrendaProcesoID;";
     // PrendaProceso: agregar proceso a una prenda
     public async Task<int> AddProcesoToPrendaAsync(int prendaId, int procesoId)
     {
-        // validaciones FK claras (400 en controller)
-        const string chkPrenda = "SELECT COUNT(1) FROM dbo.Prenda WHERE PrendaID=@id";
-        const string chkProc = "SELECT COUNT(1) FROM dbo.Proceso WHERE ProcesoID=@id";
+        const string existsSql = "SELECT COUNT(1) FROM dbo.PrendaProceso WHERE PrendaID=@p AND ProcesoID=@r;";
         const string insertSql = @"
-INSERT INTO dbo.PrendaProceso (PrendaID, ProcesoID)
-OUTPUT INSERTED.PrendaProcesoID
-VALUES (@PrendaID, @ProcesoID);";
+    INSERT INTO dbo.PrendaProceso (PrendaID, ProcesoID)
+    OUTPUT INSERTED.PrendaProcesoID
+    VALUES (@p, @r);";
 
         using var con = _db.GetConnection();
         await con.OpenAsync();
 
-        // prenda existe
-        using (var c1 = new SqlCommand(chkPrenda, con))
-        {
-            c1.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = prendaId });
-            if ((int)await c1.ExecuteScalarAsync() == 0) return -1; // prenda no existe
-        }
+        // prenda/proceso existen (ya lo hacías)
+        // ...
 
-        // proceso existe
-        using (var c2 = new SqlCommand(chkProc, con))
+        // evitar duplicado
+        using (var e = new SqlCommand(existsSql, con))
         {
-            c2.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = procesoId });
-            if ((int)await c2.ExecuteScalarAsync() == 0) return -2; // proceso no existe
+            e.Parameters.Add(new SqlParameter("@p", SqlDbType.Int) { Value = prendaId });
+            e.Parameters.Add(new SqlParameter("@r", SqlDbType.Int) { Value = procesoId });
+            if ((int)await e.ExecuteScalarAsync() > 0) return 0; // ya existe
         }
 
         using var cmd = new SqlCommand(insertSql, con);
-        cmd.Parameters.Add(new SqlParameter("@PrendaID", SqlDbType.Int) { Value = prendaId });
-        cmd.Parameters.Add(new SqlParameter("@ProcesoID", SqlDbType.Int) { Value = procesoId });
+        cmd.Parameters.Add(new SqlParameter("@p", SqlDbType.Int) { Value = prendaId });
+        cmd.Parameters.Add(new SqlParameter("@r", SqlDbType.Int) { Value = procesoId });
 
         return Convert.ToInt32(await cmd.ExecuteScalarAsync());
     }
@@ -543,6 +693,28 @@ VALUES (@PrendaID, @ProcesoID);";
         var val = await cmd.ExecuteScalarAsync();
         if (val is null) throw new InvalidOperationException($"Cliente no encontrado: {clientId}");
         return Convert.ToBoolean(val); // true = activo, false = inactivo
+    }
+
+    public async Task<bool> SetProcesoActualAsync(int prendaId, int procesoId)
+    {
+        const string sql = @"
+    UPDATE dbo.Prenda
+       SET ProcesoID = @ProcesoID, FechaCambio = GETDATE()
+     WHERE PrendaID = @PrendaID;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.PrendaProceso WHERE PrendaID = @PrendaID AND ProcesoID = @ProcesoID)
+        INSERT INTO dbo.PrendaProceso (PrendaID, ProcesoID) VALUES (@PrendaID, @ProcesoID);
+
+    SELECT @@ROWCOUNT; -- devuelve filas afectadas del UPDATE";
+
+        using var con = _db.GetConnection();
+        using var cmd = new SqlCommand(sql, con);
+        cmd.Parameters.Add(new SqlParameter("@PrendaID", SqlDbType.Int) { Value = prendaId });
+        cmd.Parameters.Add(new SqlParameter("@ProcesoID", SqlDbType.Int) { Value = procesoId });
+
+        await con.OpenAsync();
+        var affected = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+        return affected > 0;
     }
 
 
