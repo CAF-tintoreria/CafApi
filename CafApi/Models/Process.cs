@@ -8,10 +8,10 @@ namespace CafApi.Models
     {
         public int ProcessID { get; set; }
 
-        [Required, StringLength(80)]
-        public ETypeProcess TypeProcess { get; set; }
+        [Required, StringLength(50)]
+        public string TypeProcess { get; set; } = string.Empty;
 
-        [StringLength(300)]
+        [StringLength(250)]
         public string? Observations { get; set; }      
     }
 }

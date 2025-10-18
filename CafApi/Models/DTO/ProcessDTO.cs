@@ -3,26 +3,34 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CafApi.Models.DTO
 {
+    // Models/DTO/ProcessDTO.cs
     public class ProcessDTO
     {
         public int ProcessID { get; set; }
 
-        [Required, StringLength(80)]
-        public required string TypeProcess { get; set; }   // "Batik", "Gel", "Nevado"
+        [Required, StringLength(50)]
+        public string TypeProcess { get; set; } = string.Empty;
 
-        [StringLength(300)]
-        public string? Observations { get; set; }         // opcional
+        [StringLength(250)]
+        public string? Observations { get; set; }
     }
 
     public class ProcessCreateDto
     {
-        public string TypeProcess { get; set; } = "";
+        [Required, StringLength(50)]
+        public string TypeProcess { get; set; } = string.Empty;
+
+        [StringLength(250)]
         public string? Observations { get; set; }
     }
 
     public class ProcessUpdateDto
     {
-        public string TypeProcess { get; set; } = "";
+        [Required, StringLength(50)]
+        public string TypeProcess { get; set; } = string.Empty;
+
+        [StringLength(250)]
         public string? Observations { get; set; }
     }
+
 }
