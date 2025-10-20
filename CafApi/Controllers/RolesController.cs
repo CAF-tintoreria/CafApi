@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-[Authorize(Roles = "Administrador")] // solo admins administran roles
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class RolesController : ControllerBase
@@ -23,6 +23,8 @@ public class RolesController : ControllerBase
         => Ok(new { ok = true, data = await _repo.GetPermisosByRolAsync(rolId) });
 
     public record RolCreateDto(string Nombre, string? Descripcion);
+
+    [Authorize(Roles = "Administrador")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] RolCreateDto dto)
     {
@@ -35,6 +37,8 @@ public class RolesController : ControllerBase
     }
 
     public record RolUpdateDto(string Nombre, string? Descripcion);
+
+    [Authorize(Roles = "Administrador")]
     [HttpPut("{rolId:int}")]
     public async Task<IActionResult> Update(int rolId, [FromBody] RolUpdateDto dto)
     {
@@ -47,6 +51,7 @@ public class RolesController : ControllerBase
                   : NotFound(new { ok = false, message = "Rol no encontrado." });
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpDelete("{rolId:int}")]
     public async Task<IActionResult> Delete(int rolId)
     {
@@ -65,6 +70,8 @@ public class RolesController : ControllerBase
     }
 
     public record AsignarPermisosDto(IEnumerable<string> Codigos);
+
+    [Authorize(Roles = "Administrador")]
     [HttpPost("{rolId:int}/permisos")]
     public async Task<IActionResult> Assign(int rolId, [FromBody] AsignarPermisosDto dto)
     {
@@ -72,6 +79,7 @@ public class RolesController : ControllerBase
         return Ok(new { ok = true, message = "Permisos asignados." });
     }
 
+    [Authorize(Roles = "Administrador")]
     [HttpDelete("{rolId:int}/permisos/{codigo}")]
     public async Task<IActionResult> Revoke(int rolId, string codigo)
     {
