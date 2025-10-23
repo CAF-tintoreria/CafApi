@@ -4,18 +4,19 @@ namespace CafApi.Constants.Enum
 {
     public enum ESampleStatus
     {
-        [Display(Name = "Realizado")]
-        Realizado = 0,
-        [Display(Name = "Entregado")]
-        Entregado =  1,
+        Entrada = 1,
+        Terminado = 2,
+        Entregado = 3
     }
 
     public static class ESampleStateExtension
     {
         private static readonly Dictionary<ESampleStatus, string> _enumToString = new()
         {
-            { ESampleStatus.Entregado, "Entregado" },
-            { ESampleStatus.Realizado, "Realizado" }
+            { ESampleStatus.Entrada, "Entrada" },
+            { ESampleStatus.Terminado, "Terminado" },
+            { ESampleStatus.Entregado, "Entregado" }
+
         };
     }
 }
