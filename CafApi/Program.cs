@@ -89,7 +89,7 @@ var jwtKey = builder.Configuration["Jwt:Key"]
 var issuer = builder.Configuration["Jwt:Issuer"] ?? "CafApi";
 var audience = builder.Configuration["Jwt:Audience"] ?? "CafApiUsers";
 // 🔧 FIX: tu config usa Jwt:ExpireMinutes (no ExpMinutes)
-var expMinutes = int.TryParse(builder.Configuration["Jwt:ExpireMinutes"], out var m) ? m : 60;
+var expMinutes = int.TryParse(builder.Configuration["Jwt:ExpireMinutes"], out var m) ? m : 300;
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opt =>
