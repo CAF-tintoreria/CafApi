@@ -18,7 +18,7 @@ namespace CafApi.Utils
             var key = _config["Jwt:Key"] ?? throw new InvalidOperationException("Falta Jwt:Key");
             var issuer = _config["Jwt:Issuer"];
             var audience = _config["Jwt:Audience"];
-            var expire = int.TryParse(_config["Jwt:ExpireMinutes"], out var m) ? m : 60;
+            var expire = int.TryParse(_config["Jwt:ExpireMinutes"], out var m) ? m : 300;
 
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
             var creds = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);

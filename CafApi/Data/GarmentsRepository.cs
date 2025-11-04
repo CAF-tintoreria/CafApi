@@ -167,7 +167,13 @@ public class PrendaRepository
                 cmd.Parameters.Add(new SqlParameter("@TipoPrenda", SqlDbType.NVarChar, 20) { Value = (object?)dto.TipoPrenda ?? DBNull.Value });
                 cmd.Parameters.Add(new SqlParameter("@NroCorte", SqlDbType.Int) { Value = (object?)dto.NroCorte ?? DBNull.Value });
                 cmd.Parameters.Add(new SqlParameter("@CantidadUnidades", SqlDbType.Int) { Value = (object?)dto.CantidadUnidades ?? DBNull.Value });
-                cmd.Parameters.Add(new SqlParameter("@PesoKilos", SqlDbType.Decimal) { Value = (object?)dto.PesoKilos ?? DBNull.Value });
+                var pPesoCreate = new SqlParameter("@PesoKilos", SqlDbType.Decimal)
+                {
+                    Precision = 18,
+                    Scale = 2,
+                    Value = (object?)dto.PesoKilos ?? DBNull.Value
+                };
+                cmd.Parameters.Add(pPesoCreate);
                 cmd.Parameters.Add(new SqlParameter("@CantidadBolsas", SqlDbType.Int) { Value = (object?)dto.CantidadBolsas ?? DBNull.Value });
                 cmd.Parameters.Add(new SqlParameter("@FechaIngreso", SqlDbType.DateTime) { Value = dto.FechaIngreso });
                 cmd.Parameters.Add(new SqlParameter("@Remito", SqlDbType.NVarChar, 20) { Value = (object?)dto.Remito ?? DBNull.Value });
@@ -230,7 +236,12 @@ public class PrendaRepository
         cmd.Parameters.Add(new SqlParameter("@TipoPrenda", SqlDbType.NVarChar, 20) { Value = (object?)dto.TipoPrenda ?? DBNull.Value });
         cmd.Parameters.Add(new SqlParameter("@NroCorte", SqlDbType.Int) { Value = dto.NroCorte });
         cmd.Parameters.Add(new SqlParameter("@CantidadUnidades", SqlDbType.Int) { Value = dto.CantidadUnidades });
-        var pPeso = new SqlParameter("@PesoKilos", SqlDbType.Decimal) { Value = dto.PesoKilos, Precision = 18, Scale = 0 };
+        var pPeso = new SqlParameter("@PesoKilos", SqlDbType.Decimal)
+        {
+            Precision = 18,
+            Scale = 2,
+            Value = dto.PesoKilos
+        };
         cmd.Parameters.Add(pPeso);
         cmd.Parameters.Add(new SqlParameter("@CantidadBolsas", SqlDbType.Int) { Value = dto.CantidadBolsas });
         cmd.Parameters.Add(new SqlParameter("@FechaIngreso", SqlDbType.DateTime) { Value = dto.FechaIngreso });
@@ -280,36 +291,34 @@ public class PrendaRepository
     {
         using var con = _db.GetConnection();
         await con.OpenAsync();
-
         using var tx = con.BeginTransaction();
 
         try
         {
-            // 1) Verificar estado = "Terminado"
-            const string checkEstadoSql = @"
-SELECT TOP 1 e.EstadoActual
-FROM dbo.Prenda p
-JOIN dbo.EstadoPrendas e ON e.EstadoPrendaID = p.EstadoPrendaID
-WHERE p.PrendaID = @id;";
+            // 1) ¿La prenda existe y su estado es Terminado o Salida?
+            const string canDeleteSql = @"
+SELECT CASE 
+         WHEN EXISTS (
+           SELECT 1
+           FROM dbo.Prenda p
+           JOIN dbo.EstadoPrendas e ON e.EstadoPrendaID = p.EstadoPrendaID
+           WHERE p.PrendaID = @id
+             AND e.EstadoActual COLLATE Latin1_General_CI_AI IN (N'Terminado', N'Salida')
+         ) THEN CAST(1 AS bit)
+         ELSE CAST(0 AS bit)
+       END;";
 
-            string? estadoActual;
-            using (var chk = new SqlCommand(checkEstadoSql, con, tx))
+            bool canDelete;
+            using (var chk = new SqlCommand(canDeleteSql, con, tx))
             {
                 chk.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = id });
-                var obj = await chk.ExecuteScalarAsync();
-                if (obj is null)
-                {
-                    // no existe la prenda
-                    await tx.RollbackAsync();
-                    return false;
-                }
-                estadoActual = Convert.ToString(obj);
+                canDelete = (bool)(await chk.ExecuteScalarAsync() ?? false);
             }
 
-            if (!string.Equals(estadoActual?.Trim(), "Terminado", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Solo se puede eliminar una prenda cuyo estado es 'Terminado'.");
+            if (!canDelete)
+                throw new InvalidOperationException("Solo se puede eliminar una prenda en estado 'Terminado' o 'Salida'.");
 
-            // 2) Borrar relaciones en PrendaProceso
+            // 2) Borrar relaciones
             using (var delRel = new SqlCommand("DELETE FROM dbo.PrendaProceso WHERE PrendaID = @id;", con, tx))
             {
                 delRel.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = id });
@@ -333,6 +342,7 @@ WHERE p.PrendaID = @id;";
             throw;
         }
     }
+
 
 
     public async Task<IEnumerable<Prenda>> GetAllWithClientAsync()
