@@ -4,8 +4,10 @@ using CafApi.Models.Sample;
 using CafApi.Models.Sample;       // por SampleDetailDTO
 using CafApi.Models.SampleState;   // por SampleStatus
 using Microsoft.Data.SqlClient;
+using Microsoft.Win32;
 using System.Data;
 using System.Reflection.PortableExecutable;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace CafApi.Data;
 
@@ -222,7 +224,16 @@ public class PrendaRepository
            MuestraID = @MuestraID,
            Observaciones = @Observaciones,
            FechaCambio = GETDATE()
-     WHERE PrendaID = @Id;";
+     WHERE PrendaID = @Id;
+        IF NOT EXISTS(
+            SELECT 1 FROM dbo.PrendaProceso
+            WHERE PrendaID = @Id AND ProcesoID = @ProcesoID
+        )
+        BEGIN
+            INSERT INTO dbo.PrendaProceso(PrendaID, ProcesoID)
+            VALUES(@Id, @ProcesoID);
+                END
+        ";
 
         using var con = _db.GetConnection();
         await con.OpenAsync();
