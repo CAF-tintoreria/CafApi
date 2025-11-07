@@ -21,6 +21,22 @@ namespace CafApi.Data
             return r is not null;
         }
 
+        public async Task<bool> ExistsNombreExceptIdAsync(string username, int excludeId)
+        {
+            using var cn = _db.GetConnection();
+            using var cmd = cn.CreateCommand();
+            cmd.CommandText = @"
+SELECT 1
+FROM dbo.Usuario
+WHERE Nombre = @nombre AND UsuarioID <> @id;";
+            cmd.Parameters.Add(new SqlParameter("@nombre", username));
+            cmd.Parameters.Add(new SqlParameter("@id", excludeId));
+            await cn.OpenAsync();
+            var r = await cmd.ExecuteScalarAsync();
+            return r is not null;
+        }
+
+
         public async Task<int> CreateAsync(UserModel u)
         {
             // Hash de la contraseña ANTES de insertar

@@ -29,9 +29,9 @@ public class PrendaController : ControllerBase
             var data = await _repo.GetAllAsync();
             return Ok(new { ok = true, data });
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            return NotFound((new { ok = false, message = "No se pudo obtener el listado." }));
+            return StatusCode(500, new { ok = false, message = "No se pudo obtener el listadoo.", detail = ex.Message });
         }
     }
 
@@ -57,6 +57,7 @@ public class PrendaController : ControllerBase
         return Ok(new { ok = true, data = dto });
     }
 
+    [Authorize(Policy = "Prenda.Crear")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] PrendaCreateDto dto)
     {
@@ -81,6 +82,7 @@ public class PrendaController : ControllerBase
         }
     }
 
+    [Authorize(Policy = "Prenda.Editar")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] PrendaUpdateDto dto)
     {
@@ -135,16 +137,20 @@ public class PrendaController : ControllerBase
         }
     }
 
-
+    [Authorize(Policy = "Prenda.Eliminar")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-
         try
         {
             var ok = await _repo.DeleteAsync(id);
             if (!ok) return NotFound(new { ok = false, message = "Prenda no encontrada." });
             return Ok(new { ok = true, message = "Prenda eliminada correctamente." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            // ← negocio: estado no Terminado
+            return BadRequest(new { ok = false, message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -181,5 +187,38 @@ public class PrendaController : ControllerBase
         {
             return NotFound(new { ok = false, message = "No se pudo obtener la prenda." });
         }
+    }
+
+    [HttpPatch("{id:int}/proceso-actual")]
+    public async Task<IActionResult> SetProcesoActual(int id, [FromBody] PrendaProcesoCreateDto body)
+    {
+        if (id <= 0 || body.ProcesoID <= 0)
+            return BadRequest(new { ok = false, message = "Datos inválidos." });
+
+        var ok = await _repo.SetProcesoActualAsync(id, body.ProcesoID);
+        return ok
+            ? Ok(new { ok = true, message = "Proceso actual actualizado y registrado en el historial." })
+            : NotFound(new { ok = false, message = "Prenda no encontrada." });
+    }
+
+
+    [HttpGet("{id:int}/procesos")]
+    public async Task<IActionResult> GetProcesos(int id)
+    {
+        var list = await _repo.GetProcesosByPrendaIdAsync(id);
+        return Ok(new { ok = true, data = list });
+    }
+
+    [HttpPost("{id:int}/procesos")]
+    public async Task<IActionResult> AddProceso(int id, [FromBody] PrendaProcesoCreateDto dto)
+    {
+        if (dto.ProcesoID <= 0) return BadRequest(new { ok = false, message = "ProcesoID inválido." });
+
+        var newId = await _repo.AddProcesoToPrendaAsync(id, dto.ProcesoID);
+        if (newId == -1) return NotFound(new { ok = false, message = "Prenda no encontrada." });
+        if (newId == -2) return NotFound(new { ok = false, message = "Proceso no encontrado." });
+        if (newId == 0) return Conflict(new { ok = false, message = "La prenda ya tiene asociado ese proceso." });
+
+        return Ok(new { ok = true, message = "Proceso asociado a la prenda.", prendaProcesoId = newId });
     }
 }
