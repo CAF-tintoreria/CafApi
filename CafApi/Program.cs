@@ -28,14 +28,9 @@ builder.Services.AddCors(opt =>
 {
     opt.AddPolicy(CorsPolicy, p =>
     {
-        p.WithOrigins(
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "https://caf-front.vercel.app/",
-            "https://nice-pond-00f989810.2.azurestaticapps.net"
-        )
-        .AllowAnyHeader()     // incluye Authorization y Content-Type
-        .AllowAnyMethod();    // GET, POST, PUT, DELETE...
+        p.AllowAnyOrigin()
+         .AllowAnyHeader()
+         .AllowAnyMethod();
     });
 });
 
