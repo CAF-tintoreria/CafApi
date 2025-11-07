@@ -2,13 +2,13 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copiamos el csproj (ruta relativa al contexto: raíz del repo)
-COPY ./CafApi/CafApi.csproj ./
-RUN dotnet restore ./CafApi.csproj
+# Copiar el archivo .csproj
+COPY CafApi.csproj ./
+RUN dotnet restore
 
-# Copiamos el resto del código del proyecto y publicamos
-COPY ./CafApi/ ./
-RUN dotnet publish ./CafApi.csproj -c Release -o /app/out
+# Copiar el resto del código
+COPY . .
+RUN dotnet publish -c Release -o /app/out
 
 # ===== runtime =====
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
