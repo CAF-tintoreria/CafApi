@@ -24,8 +24,11 @@ public class AuthController : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest dto)
+    public async Task<IActionResult> Login([FromBody] LoginRequest? dto)
     {
+        if (dto is null || string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.Password))
+            return BadRequest(new { ok = false, message = "Body inválido. Enviá { username, password } como JSON." });
+
         var user = await _repo.GetByNombreAsync(dto.Username);
         if (user is null)
             return Unauthorized(new { ok = false, message = "Credenciales inválidas" });
@@ -35,19 +38,11 @@ public class AuthController : ControllerBase
             return Unauthorized(new { ok = false, message = "Credenciales inválidas" });
 
         var permisos = await GetPermisosDelRolAsync(user.Role);
-
         var token = _jwt.CreateToken(user.UserId, user.Username, user.Role, permisos);
 
-        // ⬅️ incluimos username, rol y permisos
-        return Ok(new
-        {
-            ok = true,
-            token,
-            username = user.Username,
-            rol = user.Role,
-            permisos
-        });
+        return Ok(new { ok = true, token, username = user.Username, rol = user.Role, permisos });
     }
+
 
     [Authorize]
     [HttpPost("refresh-token")]
