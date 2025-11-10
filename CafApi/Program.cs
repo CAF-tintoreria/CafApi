@@ -154,7 +154,18 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.UseHttpsRedirection();
+app.Use(async (ctx, next) =>
+{
+    try { await next(); }
+    catch (Exception ex)
+    {
+        ctx.RequestServices.GetRequiredService<ILoggerFactory>()
+           .CreateLogger("Global").LogError(ex, "Unhandled");
+        throw; // deja que Railway registre el 500
+    }
+});
+
+//app.UseHttpsRedirection();
 app.UseCors(CorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();

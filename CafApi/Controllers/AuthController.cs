@@ -22,25 +22,35 @@ public class AuthController : ControllerBase
         _roles = roles;
     }
 
+    // Controllers/AuthController.cs
     [AllowAnonymous]
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest? dto)
+    public async Task<IActionResult> Login([FromBody] LoginRequest? dto, [FromServices] ILogger<AuthController> logger)
     {
         if (dto is null || string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.Password))
             return BadRequest(new { ok = false, message = "Body inválido. Enviá { username, password } como JSON." });
 
-        var user = await _repo.GetByNombreAsync(dto.Username);
-        if (user is null)
-            return Unauthorized(new { ok = false, message = "Credenciales inválidas" });
+        try
+        {
+            var user = await _repo.GetByNombreAsync(dto.Username); // usa dbo.Usuario  :contentReference[oaicite:0]{index=0}
+            if (user is null) return Unauthorized(new { ok = false, message = "Credenciales inválidas" });
 
-        var okPwd = PasswordHasher.Verify(dto.Password, user.Password);
-        if (!okPwd)
-            return Unauthorized(new { ok = false, message = "Credenciales inválidas" });
+            var okPwd = PasswordHasher.Verify(dto.Password, user.Password);
+            if (!okPwd) return Unauthorized(new { ok = false, message = "Credenciales inválidas" });
 
-        var permisos = await GetPermisosDelRolAsync(user.Role);
-        var token = _jwt.CreateToken(user.UserId, user.Username, user.Role, permisos);
+            // ⬇️ Acá suelen aparecer las diferencias entre local/prod
+            var permisos = await GetPermisosDelRolAsync(user.Role); // usa Rol/RolPermiso/Permiso  :contentReference[oaicite:1]{index=1}
 
-        return Ok(new { ok = true, token, username = user.Username, rol = user.Role, permisos });
+            var token = _jwt.CreateToken(user.UserId, user.Username, user.Role, permisos); // lee Jwt:* de config  :contentReference[oaicite:2]{index=2}
+
+            return Ok(new { ok = true, token, username = user.Username, rol = user.Role, permisos });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error en /api/auth/login para {User}", dto.Username);
+            // (opcional) mensaje más explícito en dev
+            return StatusCode(500, new { ok = false, message = "Error interno en login." });
+        }
     }
 
 
