@@ -18,7 +18,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "JWT__KEY": "qz2C7aP0eJcS9vN6xY4rT1uK8mL5wQ3b",
-        "ConnectionStrings__CafDb": "Server=PC-JOEL\\SQLEXPRESS;Database=cafLavadero;Trusted_Connection=True;TrustServerCertificate=True"
+        "ConnectionStrings__CafDb": "Server=crossover.proxy.rlwy.net,59963;Database=cafLavadero;User ID=sa;Password=Lapaz2025;Encrypt=True;TrustServerCertificate=True;"
       }
     },
     "https": {
@@ -30,7 +30,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "JWT__KEY": "qz2C7aP0eJcS9vN6xY4rT1uK8mL5wQ3b",
-        "ConnectionStrings__CafDb": "Server=PC-JOEL\\SQLEXPRESS;Database=cafLavadero;Trusted_Connection=True;TrustServerCertificate=True"
+        "ConnectionStrings__CafDb": "Server=crossover.proxy.rlwy.net,59963;Database=cafLavadero;User ID=sa;Password=Lapaz2025;Encrypt=True;TrustServerCertificate=True;"
       }
     },
     "IIS Express": {
@@ -40,7 +40,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "JWT__KEY": "qz2C7aP0eJcS9vN6xY4rT1uK8mL5wQ3b",
-        "ConnectionStrings__CafDb": "Server=PC-JOEL\\SQLEXPRESS;Database=cafLavadero;Trusted_Connection=True;TrustServerCertificate=True"
+        "ConnectionStrings__CafDb": "Server=crossover.proxy.rlwy.net,59963;Database=cafLavadero;User ID=sa;Password=Lapaz2025;Encrypt=True;TrustServerCertificate=True;"
       }
     }
   }
