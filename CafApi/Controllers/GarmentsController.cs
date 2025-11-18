@@ -11,6 +11,7 @@ namespace CafApi.Controllers;
 public class PrendaController : ControllerBase
 {
     private readonly PrendaRepository _repo;
+    private readonly AuditService _audit;
 
     public enum UpdateEstadoResult
     {
@@ -19,7 +20,11 @@ public class PrendaController : ControllerBase
         NotFound = -1,
         Error = -2
     }
-    public PrendaController(PrendaRepository repo) => _repo = repo;
+    public PrendaController(PrendaRepository repo, AuditService audit)
+    {
+        _repo = repo;
+        _audit = audit;
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
@@ -69,6 +74,13 @@ public class PrendaController : ControllerBase
         try
         {
             var id = await _repo.CreateAsync(dto);
+
+            var after = await _repo.GetByIdAsync(id);
+            await _audit.LogAsync(
+                entidad: "Prenda", entidadId: id, operacion: "CREATE",
+                beforeObj: null, afterObj: after,
+                extra: $"Creación de prenda #{id}"
+            );
             return Ok(new { ok = true, id, message = "Prenda creada correctamente." });
         }
         catch (InvalidOperationException vex)
@@ -94,9 +106,19 @@ public class PrendaController : ControllerBase
 
         try
         {
+            var before = await _repo.GetByIdAsync(id);
             var affected = await _repo.UpdateAsync(id, dto);
             if (affected == 0)
                 return NotFound(new { ok = false, message = "Prenda no encontrada." });
+
+            var after = await _repo.GetByIdAsync(id);
+
+            await _audit.LogAsync(
+                entidad: "Prenda", entidadId: id, operacion: "UPDATE",
+                beforeObj: before, afterObj: after,
+                extra: $"Actualización completa de prenda #{id}"
+            );
+
             return Ok(new { ok = true, message = "Prenda actualizada correctamente." });
         }
         catch (InvalidOperationException vex)
@@ -117,11 +139,43 @@ public class PrendaController : ControllerBase
 
         try
         {
+            var estadoBefore = await _repo.GetEstadoByIdAsync(id);
             var code = await _repo.UpdateEstadoAsync(id, dto.EstadoPrendaID);
 
             // 1 = actualizado, 0 = ya tenía ese estado, -1 = prenda no existe
             if (code == 1)
+            {
+                var estadoAfter = await _repo.GetEstadoByIdAsync(id);
+
+                // Objeto compacto para el diff
+                var beforeObj = new
+                {
+                    PrendaID = id,
+                    Estado = estadoBefore?.EstadoPrendaID,
+                    NombreEstado = estadoBefore?.EstadoActual   // <- antes: .Nombre
+                };
+                var afterObj = new
+                {
+                    PrendaID = id,
+                    Estado = estadoAfter?.EstadoPrendaID,
+                    NombreEstado = estadoAfter?.EstadoActual    // <- antes: .Nombre
+                };
+
+                // Fallback por si el nombre viniera null (muestra el ID)
+                string nombreBefore = beforeObj.NombreEstado ?? $"#{beforeObj.Estado}";
+                string nombreAfter = afterObj.NombreEstado ?? $"#{afterObj.Estado}";
+
+                await _audit.LogAsync(
+                    entidad: "Prenda",
+                    entidadId: id,
+                    operacion: "UPDATE-ESTADO",
+                    beforeObj: beforeObj,
+                    afterObj: afterObj,
+                    extra: $"Cambio de estado: {nombreBefore} -> {nombreAfter}"
+                );
+
                 return Ok(new { ok = true, message = "Estado actualizado correctamente." });
+            }
 
             if (code == 0)
                 return BadRequest(new { ok = false, message = "La prenda ya tiene ese estado." });
@@ -143,8 +197,14 @@ public class PrendaController : ControllerBase
     {
         try
         {
+            var before = await _repo.GetByIdAsync(id);
             var ok = await _repo.DeleteAsync(id);
             if (!ok) return NotFound(new { ok = false, message = "Prenda no encontrada." });
+            await _audit.LogAsync(
+  entidad: "Prenda", entidadId: id, operacion: "DELETE",
+  beforeObj: before, afterObj: null,
+  extra: $"Eliminación de prenda #{id}"
+);
             return Ok(new { ok = true, message = "Prenda eliminada correctamente." });
         }
         catch (InvalidOperationException ex)

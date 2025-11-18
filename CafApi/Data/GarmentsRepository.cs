@@ -118,26 +118,31 @@ public class PrendaRepository
         };
     }
 
-    public async Task<PrendaEstadoUpdateDto?> GetEstadoByIdAsync(int id)
+    public async Task<EstadoPrenda?> GetEstadoByIdAsync(int prendaId)
     {
         const string sql = @"
-            SELECT PrendaID, EstadoPrendaID
-            FROM dbo.Prenda
-            WHERE PrendaID = @id";
+        SELECT p.PrendaID,
+               p.EstadoPrendaID,
+               e.EstadoActual
+        FROM dbo.Prenda p
+        JOIN dbo.EstadoPrendas e ON e.EstadoPrendaID = p.EstadoPrendaID
+        WHERE p.PrendaID = @id;";
 
         using var con = _db.GetConnection();
         using var cmd = new SqlCommand(sql, con);
-        cmd.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = id });
+        cmd.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = prendaId });
 
         await con.OpenAsync();
         using var rd = await cmd.ExecuteReaderAsync();
         if (!await rd.ReadAsync()) return null;
 
-        return new PrendaEstadoUpdateDto
+        return new EstadoPrenda
         {
-            EstadoPrendaID = rd.GetInt32("EstadoPrendaID")
+            EstadoPrendaID = rd.GetInt32(rd.GetOrdinal("EstadoPrendaID")),
+            EstadoActual = rd.GetString(rd.GetOrdinal("EstadoActual"))
         };
     }
+
 
     public async Task<int> CreateAsync(PrendaCreateDto dto)
     {

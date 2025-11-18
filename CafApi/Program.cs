@@ -76,6 +76,8 @@ builder.Services.AddScoped<ISampleRepository, SampleRepository>();
 builder.Services.AddSingleton<PasswordHasher>();
 builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddScoped<RolesRepository>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<AuditService>();
 
 // JWT
 var jwtKey = builder.Configuration["Jwt:Key"]

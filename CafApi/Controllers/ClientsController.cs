@@ -15,11 +15,21 @@ public class ClientsController : ControllerBase
 {
     private readonly ClientsRepository _repo;
     private readonly JwtTokenService _tokenSvc;
-    public ClientsController(ClientsRepository repo, JwtTokenService tokenSvc)
+    private readonly AuditService _audit;
+    public ClientsController(ClientsRepository repo, JwtTokenService tokenSvc, AuditService audit)
     {
         _repo = repo;
         _tokenSvc = tokenSvc;
+        _audit = audit;
     }
+
+    private static object ClientLogShape(Client c) => new
+    {
+        c.ClientID,
+        Nombre = c.Username,
+        c.Contact,
+        c.State
+    };
 
     [HttpGet]
     public async Task<ActionResult> Get([FromQuery] string? username)
@@ -68,6 +78,14 @@ public class ClientsController : ControllerBase
             var newId = await _repo.CreateAsync(dto);
             var created = await _repo.GetByIdAsync(newId);
 
+            // AUDIT
+            await _audit.LogAsync(
+                entidad: "Cliente", entidadId: newId, operacion: "CREATE",
+                beforeObj: null,
+                afterObj: created is null ? null : ClientLogShape(created),
+                extra: $"Creación de cliente #{newId}"
+            );
+
             return CreatedAtAction(nameof(GetById), new { id = newId },
                 new { ok = true, message = "Cliente creado correctamente."});
         }
@@ -91,6 +109,8 @@ public class ClientsController : ControllerBase
             if (await _repo.ExistsByNombreAsync(dto.Username, id))
                 return Conflict(new { ok = false, message = "Ya existe otro cliente con ese Nombre." });
 
+            var before = existing;
+
             var entity = new Client
             {
                 ClientID = id,
@@ -100,9 +120,20 @@ public class ClientsController : ControllerBase
             };
 
             var ok = await _repo.UpdateAsync(entity);
-            return ok
-                ? Ok(new { ok = true, message = "Cliente editado correctamente." })
-                : StatusCode(500, new { ok = false, message = "No se pudo actualizar." });
+            if (!ok)
+                return StatusCode(500, new { ok = false, message = "No se pudo actualizar." });
+
+            var after = await _repo.GetByIdAsync(id);
+
+            // AUDIT
+            await _audit.LogAsync(
+                entidad: "Cliente", entidadId: id, operacion: "UPDATE",
+                beforeObj: ClientLogShape(before),
+                afterObj: after is null ? null : ClientLogShape(after),
+                extra: $"Actualización de cliente #{id}"
+            );
+
+            return Ok(new { ok = true, message = "Cliente editado correctamente." });
         }
         catch (SqlException) { return Problem500Dev("Error de base de datos al actualizar el cliente."); }
         catch (Exception) { return Problem500Dev("No se pudo actualizar el cliente."); }
@@ -118,10 +149,20 @@ public class ClientsController : ControllerBase
             if (existing is null)
                 return NotFound(new { ok = false, message = "Cliente no encontrado." });
 
+            var before = existing;
             var deleted = await _repo.DeleteAsync(id);
-            return deleted
-                ? Ok(new { ok = true, message = "Cliente eliminado correctamente." })
-                : StatusCode(500, new { ok = false, message = "No se pudo eliminar el cliente." });
+            if (!deleted)
+                return StatusCode(500, new { ok = false, message = "No se pudo eliminar el cliente." });
+
+            // AUDIT
+            await _audit.LogAsync(
+                entidad: "Cliente", entidadId: id, operacion: "DELETE",
+                beforeObj: ClientLogShape(before),
+                afterObj: null,
+                extra: $"Eliminación de cliente #{id}"
+            );
+
+            return Ok(new { ok = true, message = "Cliente eliminado correctamente." });
         }
         catch (InvalidOperationException ex)
         {
