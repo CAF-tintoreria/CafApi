@@ -173,13 +173,15 @@ public class ProcessController : ControllerBase
                 return NotFound(new { ok = false, message = "Proceso no encontrado." });
 
             var refs = await _repo.GetReferenceCountsAsync(id);
-            if (refs.muestras > 0 || refs.prendas > 0)
+
+            if (refs.muestras > 0 || refs.prendasActuales > 0)
             {
                 return Conflict(new
                 {
                     ok = false,
                     code = "PROCESS_HAS_RELATIONS",
-                    message = $"No se puede eliminar: el proceso está asociado a {refs.muestras} muestras y {refs.prendas} prendas."
+                    message =
+                        $"No se puede eliminar: el proceso está asociado a {refs.muestras} muestras y {refs.prendasActuales} prendas."
                 });
             }
 
@@ -188,7 +190,7 @@ public class ProcessController : ControllerBase
                 ? Ok(new { ok = true, message = "Proceso eliminado correctamente." })
                 : StatusCode(500, new { ok = false, message = "No se pudo eliminar." });
         }
-        // Por si alguien dispara el delete sin el pre-chequeo o aparece otra FK relacionada
+        // safety net por si aparece otra FK que no contemplamos
         catch (SqlException ex) when (ex.Number == 547) // FK violation
         {
             return Conflict(new
@@ -207,6 +209,7 @@ public class ProcessController : ControllerBase
             return Problem500Dev("No se pudo eliminar el proceso.");
         }
     }
+
 
     [HttpDelete("{id:int}/procesos/{procesoId:int}")]
     public async Task<IActionResult> RemoveProceso(int id, int procesoId)

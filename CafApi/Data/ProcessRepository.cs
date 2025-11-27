@@ -135,12 +135,13 @@ namespace CafApi.Data
             return r is not null;
         }
 
-        public async Task<(int muestras, int prendas)> GetReferenceCountsAsync(int processId)
+        public async Task<(int muestras, int prendasHistoricas, int prendasActuales)> GetReferenceCountsAsync(int processId)
         {
             const string sql = @"
         SELECT 
-            (SELECT COUNT(*) FROM dbo.MuestraProceso WHERE ProcesoID = @id) AS Muestras,
-            (SELECT COUNT(*) FROM dbo.PrendaProceso  WHERE ProcesoID = @id) AS Prendas;";
+            (SELECT COUNT(*) FROM dbo.MuestraProceso WHERE ProcesoID = @id)       AS Muestras,
+            (SELECT COUNT(*) FROM dbo.PrendaProceso  WHERE ProcesoID = @id)       AS PrendasHistoricas,
+            (SELECT COUNT(*) FROM dbo.Prenda        WHERE ProcesoID = @id)        AS PrendasActuales;";
 
             using var con = _db.GetConnection();
             using var cmd = new SqlCommand(sql, con);
@@ -151,13 +152,16 @@ namespace CafApi.Data
             await rd.ReadAsync();
 
             var muestras = rd.GetInt32(0);
-            var prendas = rd.GetInt32(1);
-            return (muestras, prendas);
+            var prendasHistoricas = rd.GetInt32(1);
+            var prendasActuales = rd.GetInt32(2);
+
+            return (muestras, prendasHistoricas, prendasActuales);
         }
 
-    
 
-    public async Task<bool> RemoveProcesoFromPrendaAsync(int prendaId, int procesoId)
+
+
+        public async Task<bool> RemoveProcesoFromPrendaAsync(int prendaId, int procesoId)
         {
             const string checkActual = "SELECT ProcesoID FROM dbo.Prenda WHERE PrendaID=@p;";
             const string deleteSql = "DELETE FROM dbo.PrendaProceso WHERE PrendaID=@p AND ProcesoID=@r;";
