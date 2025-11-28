@@ -23,11 +23,6 @@ VALUES (@TipoPrenda, @PesoKilos, @ClienteID, @EstadoMuestraID, @FechaCambio);";
             using var connection = _db.GetConnection();
             await connection.OpenAsync();
 
-            // 1) Unicidad de nombre (case/acentos-insensible)
-            if (await ExistsClotheTypeAsync(connection, null, sample.ClotheType))
-                throw new InvalidOperationException("Ya existe una muestra con ese nombre de prenda (ClotheType).");
-
-            // 2) Cliente activo
             if (!await IsClientActiveAsync(connection, null, sample.ClientID))
                 throw new InvalidOperationException("El cliente seleccionado está inactivo. No se puede asignar una muestra.");
 
