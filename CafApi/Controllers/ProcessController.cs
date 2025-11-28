@@ -181,7 +181,7 @@ public class ProcessController : ControllerBase
                     ok = false,
                     code = "PROCESS_HAS_RELATIONS",
                     message =
-                        $"No se puede eliminar: el proceso está asociado a {refs.muestras} muestras y {refs.prendasActuales} prendas."
+                        $"No se puede eliminar: el proceso está asociado a {refs.prendasActuales} prendas."
                 });
             }
 
