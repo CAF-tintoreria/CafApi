@@ -380,7 +380,7 @@ LEFT JOIN dbo.Muestra       m  ON m.MuestraID       = p.MuestraID
 LEFT JOIN dbo.EstadoMuestra em ON em.EstadoMuestraID = m.EstadoMuestraID
 LEFT JOIN dbo.PrendaProceso pp ON pp.PrendaID       = p.PrendaID
 LEFT JOIN dbo.Proceso       pr ON pr.ProcesoID      = pp.ProcesoID
-ORDER BY p.PrendaID, pp.PrendaProcesoID;";
+ORDER BY p.FechaIngreso DESC, p.PrendaID DESC, pp.PrendaProcesoID;";
 
         var byId = new Dictionary<int, Prenda>();
 
