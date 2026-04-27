@@ -188,7 +188,7 @@ public class PrendaRepository
                 cmd.Parameters.Add(new SqlParameter("@ProcesoID", SqlDbType.Int) { Value = dto.ProcesoID });
                 cmd.Parameters.Add(new SqlParameter("@ClienteID", SqlDbType.Int) { Value = dto.ClienteID });
                 cmd.Parameters.Add(new SqlParameter("@MuestraID", SqlDbType.Int) { Value = (object?)dto.MuestraID ?? DBNull.Value });
-                cmd.Parameters.Add(new SqlParameter("@Observaciones", SqlDbType.NVarChar, 200) { Value = (object?)dto.Observaciones ?? DBNull.Value });
+                cmd.Parameters.Add(new SqlParameter("@Observaciones", SqlDbType.NVarChar, 500) { Value = (object?)dto.Observaciones ?? DBNull.Value });
 
                 prendaId = Convert.ToInt32(await cmd.ExecuteScalarAsync());
             }
@@ -266,7 +266,7 @@ public class PrendaRepository
         cmd.Parameters.Add(new SqlParameter("@ProcesoID", SqlDbType.Int) { Value = dto.ProcesoID });
         cmd.Parameters.Add(new SqlParameter("@ClienteID", SqlDbType.Int) { Value = dto.ClienteID });
         cmd.Parameters.Add(new SqlParameter("@MuestraID", SqlDbType.Int) { Value = (object?)dto.MuestraID ?? DBNull.Value });
-        cmd.Parameters.Add(new SqlParameter("@Observaciones", SqlDbType.NVarChar, 200) { Value = (object?)dto.Observaciones ?? DBNull.Value });
+        cmd.Parameters.Add(new SqlParameter("@Observaciones", SqlDbType.NVarChar, 500) { Value = (object?)dto.Observaciones ?? DBNull.Value });
 
         return await cmd.ExecuteNonQueryAsync();
     }
