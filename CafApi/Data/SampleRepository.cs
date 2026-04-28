@@ -16,9 +16,9 @@ namespace CafApi.Data
         public async Task<int> CreateAsync(CreateSampleDTO sample)
         {
             const string query = @"
-INSERT INTO dbo.Muestra (TipoPrenda, PesoKilos, ClienteID, EstadoMuestraID, FechaCambio)
+INSERT INTO dbo.Muestra (TipoPrenda, PesoKilos, ClienteID, EstadoMuestraID, FechaCambio, Observaciones)
 OUTPUT INSERTED.MuestraID
-VALUES (@TipoPrenda, @PesoKilos, @ClienteID, @EstadoMuestraID, @FechaCambio);";
+VALUES (@TipoPrenda, @PesoKilos, @ClienteID, @EstadoMuestraID, @FechaCambio, @Observaciones);";
 
             using var connection = _db.GetConnection();
             await connection.OpenAsync();
@@ -32,6 +32,7 @@ VALUES (@TipoPrenda, @PesoKilos, @ClienteID, @EstadoMuestraID, @FechaCambio);";
             command.Parameters.AddWithValue("@ClienteID", sample.ClientID);
             command.Parameters.AddWithValue("@EstadoMuestraID", sample.SampleStatusID);
             command.Parameters.Add(new SqlParameter("@FechaCambio", SqlDbType.DateTime) { Value = (object?)sample.ModifiedAt ?? DBNull.Value });
+            command.Parameters.Add(new SqlParameter("@Observaciones", SqlDbType.NVarChar, 500) { Value = (object?)sample.Observaciones ?? DBNull.Value });
 
             return Convert.ToInt32(await command.ExecuteScalarAsync());
         }
@@ -45,7 +46,8 @@ UPDATE dbo.Muestra
        PesoKilos = @KilogramWeight,
        ClienteID = @ClientID,
        EstadoMuestraID = @SampleStatusID,
-       FechaCambio = @ModifiedAt
+       FechaCambio = @ModifiedAt,
+       Observaciones = @Observaciones
  WHERE MuestraID = @Id;";
 
             using var connection = _db.GetConnection();
@@ -66,6 +68,7 @@ UPDATE dbo.Muestra
             command.Parameters.AddWithValue("@SampleStatusID", sample.SampleStatusID);
             command.Parameters.AddWithValue("@ModifiedAt", DateTime.Now);
             command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = id });
+            command.Parameters.Add(new SqlParameter("@Observaciones", SqlDbType.NVarChar, 500) { Value = (object?)sample.Observaciones ?? DBNull.Value });
 
             var rows = await command.ExecuteNonQueryAsync();
             return rows > 0 ? id : -1;
@@ -110,7 +113,7 @@ UPDATE dbo.Muestra
         public async Task<IEnumerable<SampleDetailDTO>> GetAllAsync()
         {
             const string query = @"
-SELECT  m.MuestraID, m.TipoPrenda, m.PesoKilos, m.FechaCambio,
+SELECT  m.MuestraID, m.TipoPrenda, m.PesoKilos, m.FechaCambio, m.Observaciones,
 
         c.ClienteID      AS C_ClienteID,
         c.Nombre         AS C_Nombre,
@@ -154,6 +157,7 @@ ORDER BY m.MuestraID, mp.MuestraProcesoID;";
             int oTipoPrenda = rd.GetOrdinal("TipoPrenda");
             int oPesoKilos = rd.GetOrdinal("PesoKilos");
             int oFechaCambio = rd.GetOrdinal("FechaCambio");
+            int oObservaciones = rd.GetOrdinal("Observaciones");
 
             int oC_ClienteID = rd.GetOrdinal("C_ClienteID");
             int oC_Nombre = rd.GetOrdinal("C_Nombre");
@@ -185,6 +189,7 @@ ORDER BY m.MuestraID, mp.MuestraProcesoID;";
                         ClotheType = rd.GetString(oTipoPrenda),
                         KilogramWeight = rd.GetDecimal(oPesoKilos),
                         ModifiedAt = rd.IsDBNull(oFechaCambio) ? (DateTime?)null : rd.GetDateTime(oFechaCambio),
+                        Observaciones = rd.IsDBNull(oObservaciones) ? null : rd.GetString(oObservaciones),
 
                         Client = !rd.IsDBNull(oC_ClienteID) ? new Client
                         {
@@ -223,7 +228,7 @@ ORDER BY m.MuestraID, mp.MuestraProcesoID;";
         public async Task<SampleDetailDTO?> GetByIdAsync(int sampleId)
         {
             const string query = @"
-SELECT  m.MuestraID, m.TipoPrenda, m.PesoKilos, m.FechaCambio,
+SELECT  m.MuestraID, m.TipoPrenda, m.PesoKilos, m.FechaCambio, m.Observaciones,
 
         c.ClienteID      AS C_ClienteID,
         c.Nombre         AS C_Nombre,
@@ -268,6 +273,7 @@ ORDER BY mp.MuestraProcesoID;";
             int oTipoPrenda = rd.GetOrdinal("TipoPrenda");
             int oPesoKilos = rd.GetOrdinal("PesoKilos");
             int oFechaCambio = rd.GetOrdinal("FechaCambio");
+            int oObservaciones = rd.GetOrdinal("Observaciones");
 
             int oC_ClienteID = rd.GetOrdinal("C_ClienteID");
             int oC_Nombre = rd.GetOrdinal("C_Nombre");
@@ -297,6 +303,7 @@ ORDER BY mp.MuestraProcesoID;";
                         ClotheType = rd.GetString(oTipoPrenda),
                         KilogramWeight = rd.GetDecimal(oPesoKilos),
                         ModifiedAt = rd.IsDBNull(oFechaCambio) ? (DateTime?)null : rd.GetDateTime(oFechaCambio),
+                        Observaciones = rd.IsDBNull(oObservaciones) ? null : rd.GetString(oObservaciones),
 
                         Client = !rd.IsDBNull(oC_ClienteID) ? new Client
                         {
