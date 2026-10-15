@@ -78,6 +78,7 @@ builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddScoped<RolesRepository>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AuditService>();
+builder.Services.AddScoped<PrecioClienteRepository>();
 
 // JWT
 var jwtKey = builder.Configuration["Jwt:Key"]
@@ -173,3 +174,4 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
+
